@@ -1,10 +1,18 @@
 local S = blueprint_tool.TRANSLATOR
 local SLOTS_PER_PAGE = 10
 
-local picker_page = {}  -- [playerName] = current page (transient)
+local picker_page   = {}  -- [playerName] = current page (transient)
+local analysis_cache = {}  -- [playerName] = last analysis result (transient)
 
 local function notify(playerName, msg)
   blueprint_tool.show_popup(playerName, msg)
+end
+
+local function player_can_use_pos(playerName, pos)
+  if minetest.check_player_privs(playerName, { allow_capture_protected = true }) then
+    return true
+  end
+  return not minetest.is_protected(pos, playerName)
 end
 
 local function sanitize_name(name)
@@ -20,8 +28,6 @@ local function set_active_slot(itemstack, slot_idx)
   itemstack:get_meta():set_int("active_slot", slot_idx or 0)
 end
 
--- Returns slot_idx (possibly just assigned) and whether it was auto-assigned.
--- Modifies itemstack in place if auto-assigning.
 local function get_or_assign_slot(playerName, itemstack)
   local slot = get_active_slot(itemstack)
   if slot then return slot, false end
@@ -45,8 +51,10 @@ local function build_main_formspec(playerName, itemstack)
 
   local slot_line
   if slot_idx then
-    local name = (slot_data and slot_data.name) or ""
-    slot_line = "Will save Blueprint to slot "..minetest.colorize(blueprint_tool.COLOR_ACCENT, tostring(slot_idx)).." out of "..minetest.colorize(blueprint_tool.COLOR_ACCENT, tostring(limit))
+    slot_line = "Will save Blueprint to slot "..
+      minetest.colorize(blueprint_tool.COLOR_ACCENT, tostring(slot_idx))..
+      " out of "..
+      minetest.colorize(blueprint_tool.COLOR_ACCENT, tostring(limit))
   else
     slot_line = minetest.colorize(blueprint_tool.COLOR_WARN, "No Empty Slot Available")
   end
@@ -73,8 +81,9 @@ local function build_main_formspec(playerName, itemstack)
 
   return "formspec_version[4]"..
     "size[8.5,7.0]"..
+    "button_exit[7.8,0.1;0.6,0.6;close;X]"..
     "label[0.3,0.6;"..minetest.formspec_escape(slot_line).."]"..
-    "button[6.0,0.2;2.2,0.7;pick_slot;Pick Slot]"..
+    "button[5.5,0.2;2.0,0.7;pick_slot;Pick Slot]"..
     "label[0.3,1.6;Name:]"..
     "field[1.3,1.3;4.5,0.6;slot_name;;"..minetest.formspec_escape(current_name).."]"..
     "button[6.0,1.3;2.2,0.6;rename;Rename]"..
@@ -84,8 +93,8 @@ local function build_main_formspec(playerName, itemstack)
     "label[0.3,4.0;Corner 2: "..minetest.formspec_escape(pos2_str).."]"..
     "button[6.0,3.7;2.2,0.6;clear_pos2;Clear]"..
     volume_btn..
-    "button[0.3,5.7;3.8,0.8;capture;Capture Selection]"..
-    "button_exit[4.4,5.7;3.8,0.8;close;Close]"
+    "button[0.3,5.7;3.8,0.8;capture;Capture]"..
+    "button[4.4,5.7;3.8,0.8;analyze;Analyze]"
 end
 
 local function build_slot_picker_formspec(playerName, page)
@@ -126,6 +135,62 @@ local function build_slot_picker_formspec(playerName, page)
   return fs
 end
 
+-- show_capture_btn: true when analyzing a live selection (false for existing blueprints)
+local function build_analysis_formspec(playerName, analysis, show_capture_btn)
+  local fs = "formspec_version[4]"..
+    "size[8.5,9.0]"..
+    "button[7.3,0.1;1.0,1.0;analysis_back;X]"..
+    "label[0.3,0.6;Blueprint Analysis]"
+
+  local y = 1.2
+  if analysis.total_captured == 0 then
+    fs = fs.."label[0.3,"..y..";"..
+      minetest.formspec_escape(minetest.colorize(blueprint_tool.COLOR_WARN, "No nodes to be captured"))..
+      "]"
+    y = y + 0.6
+  else
+    fs = fs.."label[0.3,"..y..";Will capture "..
+      minetest.formspec_escape(minetest.colorize(blueprint_tool.COLOR_ACCENT, tostring(analysis.total_captured)))..
+      " nodes]"
+    y = y + 0.6
+  end
+
+  if analysis.total_skipped > 0 then
+    fs = fs.."label[0.3,"..y..";"..
+      minetest.formspec_escape(minetest.colorize(blueprint_tool.COLOR_WARN,
+        "Skipped "..analysis.total_skipped.." nodes (protected)"))..
+      "]"
+    y = y + 0.6
+  end
+
+  if analysis.total_liquid and analysis.total_liquid > 0 then
+    fs = fs.."label[0.3,"..y..";"..
+      minetest.formspec_escape("Blueprint contains "..
+        minetest.colorize(blueprint_tool.COLOR_ACCENT, tostring(analysis.total_liquid))..
+        " liquid nodes")..
+      "]"
+    y = y + 0.6
+  end
+
+  -- node list as textlist
+  local entries = {}
+  for _, entry in ipairs(analysis.nodes) do
+    entries[#entries + 1] = minetest.formspec_escape(entry.count.."x  "..entry.display_name)
+  end
+  local list_str = table.concat(entries, ",")
+  fs = fs.."textlist[0.3,"..y..";7.9,5.0;node_list;"..list_str..";0;false]"
+
+  local btn_y = 8.1
+  if show_capture_btn then
+    fs = fs.."button[0.3,"..btn_y..";3.8,0.7;analysis_capture;Capture]"
+    fs = fs.."button_exit[4.4,"..btn_y..";3.8,0.7;analysis_close;Close]"
+  else
+    fs = fs.."button_exit[2.5,"..btn_y..";3.5,0.7;analysis_close;Close]"
+  end
+
+  return fs
+end
+
 local function show_main(playerName, itemstack)
   minetest.show_formspec(playerName, "blueprint_tool:creation_main",
     build_main_formspec(playerName, itemstack))
@@ -137,13 +202,20 @@ local function show_slot_picker(playerName)
     build_slot_picker_formspec(playerName, page))
 end
 
+local function show_analysis(playerName, analysis, show_capture_btn)
+  analysis_cache[playerName] = analysis
+  minetest.show_formspec(playerName, "blueprint_tool:analysis",
+    build_analysis_formspec(playerName, analysis, show_capture_btn))
+end
+
 ----------------------------------------------------------------
 -- Field handler
 ----------------------------------------------------------------
 
 minetest.register_on_player_receive_fields(function(player, formname, fields)
   if formname ~= "blueprint_tool:creation_main"
-  and formname ~= "blueprint_tool:slot_picker" then return end
+  and formname ~= "blueprint_tool:slot_picker"
+  and formname ~= "blueprint_tool:analysis" then return end
 
   local playerName = player:get_player_name()
   local itemstack = player:get_wielded_item()
@@ -186,6 +258,17 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
       return
     end
 
+    if fields.analyze then
+      local pos1, pos2 = blueprint_tool.logic.get_selection(itemstack)
+      local result, err = blueprint_tool.logic.analyze_selection(pos1, pos2, playerName)
+      if not result then
+        notify(playerName, "Cannot analyze: "..err)
+        return
+      end
+      show_analysis(playerName, result, true)
+      return
+    end
+
     local slot_idx = get_active_slot(itemstack)
 
     if fields.rename then
@@ -207,7 +290,7 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
         notify(playerName, "No slot selected - pick one first")
         return
       end
-      local bp, err = blueprint_tool.logic.capture(itemstack)
+      local bp, err = blueprint_tool.logic.capture(itemstack, playerName)
       if not bp then
         notify(playerName, "Capture failed: "..err)
         return
@@ -219,6 +302,38 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
       local id = blueprint_tool.storage.store_blueprint(bp)
       local name = sanitize_name(fields.slot_name)
       blueprint_tool.storage.set_player_slot(playerName, slot_idx, { name = name, bp_id = id })
+      notify(playerName, "Captured into slot "..slot_idx.." ("..#bp.nodes.." nodes)")
+      show_main(playerName, itemstack)
+      return
+    end
+  end
+
+  if formname == "blueprint_tool:analysis" then
+    if fields.analysis_back then
+      analysis_cache[playerName] = nil
+      show_main(playerName, itemstack)
+      return
+    end
+
+    if fields.analysis_capture then
+      local slot_idx = get_active_slot(itemstack)
+      if not slot_idx then
+        notify(playerName, "No slot selected - pick one first")
+        return
+      end
+      local bp, err = blueprint_tool.logic.capture(itemstack, playerName)
+      if not bp then
+        notify(playerName, "Capture failed: "..err)
+        return
+      end
+      local existing = blueprint_tool.storage.get_player_slot(playerName, slot_idx)
+      if existing and existing.bp_id then
+        blueprint_tool.storage.delete_blueprint(existing.bp_id)
+      end
+      local id = blueprint_tool.storage.store_blueprint(bp)
+      local slot_data = blueprint_tool.storage.get_player_slot(playerName, slot_idx) or {}
+      blueprint_tool.storage.set_player_slot(playerName, slot_idx, { name = slot_data.name or "", bp_id = id })
+      analysis_cache[playerName] = nil
       notify(playerName, "Captured into slot "..slot_idx.." ("..#bp.nodes.." nodes)")
       show_main(playerName, itemstack)
       return
@@ -281,6 +396,11 @@ minetest.register_tool("blueprint_tool:creation_tool", {
 
     local slot_idx, was_assigned = get_or_assign_slot(playerName, itemstack)
 
+    if not player_can_use_pos(playerName, pos) then
+      notify(playerName, "You can't place blueprint positions in a protected area")
+      return itemstack
+    end
+
     if user:get_player_control().sneak then
       local final, adjusted = blueprint_tool.logic.set_pos2(itemstack, pos)
       local pos1, _ = blueprint_tool.logic.get_selection(itemstack)
@@ -328,6 +448,8 @@ minetest.register_tool("blueprint_tool:creation_tool", {
 
 minetest.register_on_leaveplayer(function(objRef)
   if objRef:is_player() then
-    picker_page[objRef:get_player_name()] = nil
+    local name = objRef:get_player_name()
+    picker_page[name]    = nil
+    analysis_cache[name] = nil
   end
 end)

@@ -1,3 +1,8 @@
+minetest.register_privilege("allow_capture_protected", {
+  description = "Allows capturing nodes in protected areas",
+  give_to_singleplayer = false,
+})
+
 minetest.register_privilege("more_blueprints", {
   description = "Allows storing up to the 'more' blueprint slot limit",
   give_to_singleplayer = false,
