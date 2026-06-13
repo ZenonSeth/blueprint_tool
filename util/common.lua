@@ -1,5 +1,17 @@
 blueprint_tool.TRANSLATOR = minetest.get_translator(blueprint_tool.MODNAME)
 
+function blueprint_tool.fs_header(w, h, pos, anchor, bgcolor)
+  local px = pos    and pos.x    or 0.5
+  local py = pos    and pos.y    or 0.5
+  local ax = anchor and anchor.x or 0.5
+  local ay = anchor and anchor.y or 0.5
+  local bg = bgcolor or "#000000A0"
+  return "formspec_version[4]size["..w..","..h.."]"..
+    "position["..px..","..py.."]"..
+    "anchor["..ax..","..ay.."]"..
+    "no_prepend[]bgcolor["..bg..";false]"
+end
+
 blueprint_tool.COLOR_ACCENT = "#9999FF"
 blueprint_tool.COLOR_WARN   = "#FF8800"
 

@@ -36,6 +36,11 @@ function blueprint_tool.logic.clear_pos2(itemstack)
   itemstack:get_meta():set_string("pos2", "")
 end
 
+function blueprint_tool.logic.set_raw_selection(itemstack, pos1, pos2)
+  itemstack:get_meta():set_string("pos1", minetest.pos_to_string(pos1))
+  itemstack:get_meta():set_string("pos2", minetest.pos_to_string(pos2))
+end
+
 -- Returns final pos1 (possibly clamped), whether it was adjusted, and the modified itemstack.
 function blueprint_tool.logic.set_pos1(itemstack, pos)
   local _, pos2 = blueprint_tool.logic.get_selection(itemstack)

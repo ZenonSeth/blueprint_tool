@@ -41,6 +41,55 @@ local function get_or_assign_slot(playerName, itemstack)
 end
 
 ----------------------------------------------------------------
+-- Fine-tune face adjustment
+----------------------------------------------------------------
+
+-- face buttons: {axis, is_max_face, delta}
+-- is_max_face=true  means the face sits at the max bound of that axis (front=+Z, up=+Y, right=+X)
+-- is_max_face=false means the face sits at the min bound             (back=-Z, down=-Y, left=-X)
+-- delta: +1 = extend outward, -1 = shrink inward (from the perspective of that face)
+local FACE_BUTTONS = {
+  ft_front_plus  = {"z", true,   1},
+  ft_front_minus = {"z", true,  -1},
+  ft_back_plus   = {"z", false, -1},
+  ft_back_minus  = {"z", false,  1},
+  ft_up_plus     = {"y", true,   1},
+  ft_up_minus    = {"y", true,  -1},
+  ft_down_plus   = {"y", false, -1},
+  ft_down_minus  = {"y", false,  1},
+  ft_right_plus  = {"x", true,   1},
+  ft_right_minus = {"x", true,  -1},
+  ft_left_plus   = {"x", false, -1},
+  ft_left_minus  = {"x", false,  1},
+}
+
+local function apply_face_adjust(itemstack, axis, is_max_face, delta)
+  local pos1, pos2 = blueprint_tool.logic.get_selection(itemstack)
+  if not pos1 or not pos2 then return false end
+
+  local limits = {
+    x = blueprint_tool.settings.max_size_x,
+    y = blueprint_tool.settings.max_size_y,
+    z = blueprint_tool.settings.max_size_z,
+  }
+  local limit = limits[axis]
+
+  local mn = vector.new(
+    math.min(pos1.x, pos2.x), math.min(pos1.y, pos2.y), math.min(pos1.z, pos2.z))
+  local mx = vector.new(
+    math.max(pos1.x, pos2.x), math.max(pos1.y, pos2.y), math.max(pos1.z, pos2.z))
+
+  if is_max_face then
+    mx[axis] = blueprint_tool.clamp(mx[axis] + delta, mn[axis], mn[axis] + limit - 1)
+  else
+    mn[axis] = blueprint_tool.clamp(mn[axis] + delta, mx[axis] - limit + 1, mx[axis])
+  end
+
+  blueprint_tool.logic.set_raw_selection(itemstack, mn, mx)
+  return true
+end
+
+----------------------------------------------------------------
 -- Formspecs
 ----------------------------------------------------------------
 
@@ -79,8 +128,12 @@ local function build_main_formspec(playerName, itemstack)
     volume_btn = "button[0.3,4.7;3.8,0.7;show_volume;Show Volume]"
   end
 
-  return "formspec_version[4]"..
-    "size[8.5,7.0]"..
+  local finetune_btn = ""
+  if pos1 and pos2 then
+    finetune_btn = "button[4.4,4.7;3.8,0.7;finetune;Fine-tune]"
+  end
+
+  return blueprint_tool.fs_header(8.5, 7.0)..
     "button_exit[7.8,0.1;0.6,0.6;close;X]"..
     "label[0.3,0.6;"..minetest.formspec_escape(slot_line).."]"..
     "button[5.5,0.2;2.0,0.7;pick_slot;Pick Slot]"..
@@ -93,6 +146,7 @@ local function build_main_formspec(playerName, itemstack)
     "label[0.3,4.0;Corner 2: "..minetest.formspec_escape(pos2_str).."]"..
     "button[6.0,3.7;2.2,0.6;clear_pos2;Clear]"..
     volume_btn..
+    finetune_btn..
     "button[0.3,5.7;3.8,0.8;capture;Capture]"..
     "button[4.4,5.7;3.8,0.8;analyze;Analyze]"
 end
@@ -105,8 +159,7 @@ local function build_slot_picker_formspec(playerName, page)
   local start_slot = (page - 1) * SLOTS_PER_PAGE + 1
   local end_slot = math.min(start_slot + SLOTS_PER_PAGE - 1, limit)
 
-  local fs = "formspec_version[4]"..
-    "size[8.5,9.5]"..
+  local fs = blueprint_tool.fs_header(8.5, 9.5)..
     "label[0.3,0.6;Select Slot  -  Page "..page.." / "..total_pages.."]"..
     "button[7.3,0.1;1.0,1.0;back;X]"
 
@@ -137,8 +190,7 @@ end
 
 -- show_capture_btn: true when analyzing a live selection (false for existing blueprints)
 local function build_analysis_formspec(playerName, analysis, show_capture_btn)
-  local fs = "formspec_version[4]"..
-    "size[8.5,9.0]"..
+  local fs = blueprint_tool.fs_header(8.5, 9.0)..
     "button[7.3,0.1;1.0,1.0;analysis_back;X]"..
     "label[0.3,0.6;Blueprint Analysis]"
 
@@ -191,6 +243,36 @@ local function build_analysis_formspec(playerName, analysis, show_capture_btn)
   return fs
 end
 
+local function build_finetune_formspec(playerName, itemstack)
+  local pos1, pos2 = blueprint_tool.logic.get_selection(itemstack)
+  local size_str = "N/A"
+  if pos1 and pos2 then
+    local w = math.abs(pos2.x - pos1.x) + 1
+    local h = math.abs(pos2.y - pos1.y) + 1
+    local d = math.abs(pos2.z - pos1.z) + 1
+    size_str = w.."x"..h.."x"..d
+  end
+
+  local bw, bh = 0.6, 0.6
+  local y1, y2 = 0.2, 1.0
+
+  local function face_group(gx, gy, lbl, minus_name, plus_name)
+    return "label["..gx..","..gy..";"..lbl.."]"..
+      "button["..(gx+1.2)..","..gy..";"..bw..","..bh..";"..minus_name..";-]"..
+      "button["..(gx+1.85)..","..gy..";"..bw..","..bh..";"..plus_name..";+]"
+  end
+
+  return blueprint_tool.fs_header(10.5, 2.0, {x=0.5, y=0.85}, {x=0.5, y=0.5}, "#00000033")..
+    face_group(0.2, y1, "Front:", "ft_front_minus", "ft_front_plus")..
+    face_group(3.2, y1, "Up:",    "ft_up_minus",    "ft_up_plus")..
+    face_group(6.2, y1, "Left:",  "ft_left_minus",  "ft_left_plus")..
+    face_group(0.2, y2, "Back:",  "ft_back_minus",  "ft_back_plus")..
+    face_group(3.2, y2, "Down:",  "ft_down_minus",  "ft_down_plus")..
+    face_group(6.2, y2, "Right:", "ft_right_minus", "ft_right_plus")..
+    "label[9.0,"..(y1+0.1)..";Size: "..minetest.formspec_escape(size_str).."]"..
+    "button[9.0,"..y2..";1.3,"..bh..";ft_return;< Back]"
+end
+
 local function show_main(playerName, itemstack)
   minetest.show_formspec(playerName, "blueprint_tool:creation_main",
     build_main_formspec(playerName, itemstack))
@@ -200,6 +282,11 @@ local function show_slot_picker(playerName)
   local page = picker_page[playerName] or 1
   minetest.show_formspec(playerName, "blueprint_tool:slot_picker",
     build_slot_picker_formspec(playerName, page))
+end
+
+local function show_finetune(playerName, itemstack)
+  minetest.show_formspec(playerName, "blueprint_tool:finetune",
+    build_finetune_formspec(playerName, itemstack))
 end
 
 local function show_analysis(playerName, analysis, show_capture_btn)
@@ -215,7 +302,8 @@ end
 minetest.register_on_player_receive_fields(function(player, formname, fields)
   if formname ~= "blueprint_tool:creation_main"
   and formname ~= "blueprint_tool:slot_picker"
-  and formname ~= "blueprint_tool:analysis" then return end
+  and formname ~= "blueprint_tool:analysis"
+  and formname ~= "blueprint_tool:finetune" then return end
 
   local playerName = player:get_player_name()
   local itemstack = player:get_wielded_item()
@@ -255,6 +343,11 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
       local pos1, _ = blueprint_tool.logic.get_selection(itemstack)
       blueprint_tool.entity.show_area(playerName, pos1, nil)
       show_main(playerName, itemstack)
+      return
+    end
+
+    if fields.finetune then
+      show_finetune(playerName, itemstack)
       return
     end
 
@@ -337,6 +430,26 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
       notify(playerName, "Captured into slot "..slot_idx.." ("..#bp.nodes.." nodes)")
       show_main(playerName, itemstack)
       return
+    end
+  end
+
+  if formname == "blueprint_tool:finetune" then
+    if fields.ft_return then
+      show_main(playerName, itemstack)
+      return
+    end
+
+    for btn, def in pairs(FACE_BUTTONS) do
+      if fields[btn] then
+        local axis, is_max_face, delta = def[1], def[2], def[3]
+        if apply_face_adjust(itemstack, axis, is_max_face, delta) then
+          player:set_wielded_item(itemstack)
+          local pos1, pos2 = blueprint_tool.logic.get_selection(itemstack)
+          blueprint_tool.entity.show_area(playerName, pos1, pos2)
+        end
+        show_finetune(playerName, itemstack)
+        return
+      end
     end
   end
 
