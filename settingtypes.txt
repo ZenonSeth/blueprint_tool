@@ -1,0 +1,7 @@
+blueprint_tool_max_size_x (Max X size of a blueprint selection in nodes) int 32 1 128
+blueprint_tool_max_size_y (Max Y size of a blueprint selection in nodes) int 32 1 128
+blueprint_tool_max_size_z (Max Z size of a blueprint selection in nodes) int 32 1 128
+blueprint_tool_nodes_per_tick (How many nodes to place per server tick when applying a blueprint) int 8 1 100
+blueprint_tool_default_slots (Default number of blueprint slots per player) int 10 1 128
+blueprint_tool_more_slots (Blueprint slots granted by the more_blueprints privilege) int 100 1 500
+blueprint_tool_even_more_slots (Blueprint slots granted by the even_more_blueprints privilege or server admins) int 500 1 10000
