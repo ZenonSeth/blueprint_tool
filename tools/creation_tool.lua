@@ -46,9 +46,9 @@ local function build_main_formspec(playerName, itemstack)
   local slot_line
   if slot_idx then
     local name = (slot_data and slot_data.name) or ""
-    slot_line = "Slot "..slot_idx.." / "..limit..": "..name
+    slot_line = "Will save Blueprint to slot "..minetest.colorize(blueprint_tool.COLOR_ACCENT, tostring(slot_idx)).." out of "..minetest.colorize(blueprint_tool.COLOR_ACCENT, tostring(limit))
   else
-    slot_line = minetest.colorize("#FF8800", "No Empty Slot Available")
+    slot_line = minetest.colorize(blueprint_tool.COLOR_WARN, "No Empty Slot Available")
   end
 
   local current_name = (slot_data and slot_data.name) or ""
@@ -56,13 +56,20 @@ local function build_main_formspec(playerName, itemstack)
   local override_line = ""
   if slot_data and slot_data.bp_id then
     override_line = "label[0.3,2.5;"..
-      minetest.formspec_escape(minetest.colorize("#FF8800", "Will override existing blueprint"))..
+      minetest.formspec_escape(minetest.colorize(blueprint_tool.COLOR_WARN, "Will override existing blueprint"))..
       "]"
   end
 
   local pos1, pos2 = blueprint_tool.logic.get_selection(itemstack)
   local pos1_str = pos1 and minetest.pos_to_string(pos1) or "not set"
   local pos2_str = pos2 and minetest.pos_to_string(pos2) or "not set"
+
+  local volume_btn
+  if blueprint_tool.entity.is_area_visible(playerName) then
+    volume_btn = "button[0.3,4.7;3.8,0.7;hide_volume;Hide Volume]"
+  else
+    volume_btn = "button[0.3,4.7;3.8,0.7;show_volume;Show Volume]"
+  end
 
   return "formspec_version[4]"..
     "size[8.5,7.0]"..
@@ -73,9 +80,12 @@ local function build_main_formspec(playerName, itemstack)
     "button[6.0,1.3;2.2,0.6;rename;Rename]"..
     override_line..
     "label[0.3,3.4;Corner 1: "..minetest.formspec_escape(pos1_str).."]"..
+    "button[6.0,3.1;2.2,0.6;clear_pos1;Clear]"..
     "label[0.3,4.0;Corner 2: "..minetest.formspec_escape(pos2_str).."]"..
-    "button[0.3,5.5;3.8,0.8;capture;Capture Selection]"..
-    "button_exit[4.4,5.5;3.8,0.8;close;Close]"
+    "button[6.0,3.7;2.2,0.6;clear_pos2;Clear]"..
+    volume_btn..
+    "button[0.3,5.7;3.8,0.8;capture;Capture Selection]"..
+    "button_exit[4.4,5.7;3.8,0.8;close;Close]"
 end
 
 local function build_slot_picker_formspec(playerName, page)
@@ -142,6 +152,37 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
   if formname == "blueprint_tool:creation_main" then
     if fields.pick_slot then
       show_slot_picker(playerName)
+      return
+    end
+
+    if fields.show_volume then
+      local pos1, pos2 = blueprint_tool.logic.get_selection(itemstack)
+      blueprint_tool.entity.show_area(playerName, pos1, pos2)
+      minetest.show_formspec(playerName, "blueprint_tool:creation_main", "")
+      return
+    end
+
+    if fields.hide_volume then
+      blueprint_tool.entity.hide_area(playerName)
+      show_main(playerName, itemstack)
+      return
+    end
+
+    if fields.clear_pos1 then
+      blueprint_tool.logic.clear_pos1(itemstack)
+      player:set_wielded_item(itemstack)
+      local _, pos2 = blueprint_tool.logic.get_selection(itemstack)
+      blueprint_tool.entity.show_area(playerName, pos2, nil)
+      show_main(playerName, itemstack)
+      return
+    end
+
+    if fields.clear_pos2 then
+      blueprint_tool.logic.clear_pos2(itemstack)
+      player:set_wielded_item(itemstack)
+      local pos1, _ = blueprint_tool.logic.get_selection(itemstack)
+      blueprint_tool.entity.show_area(playerName, pos1, nil)
+      show_main(playerName, itemstack)
       return
     end
 
@@ -229,14 +270,21 @@ minetest.register_tool("blueprint_tool:creation_tool", {
 
   on_use = function(itemstack, user, pointed_thing)
     if not user or not user:is_player() then return end
-    if pointed_thing.type ~= "node" then return end
     local playerName = user:get_player_name()
-    local pos = pointed_thing.under
+    local pos
+    if pointed_thing.type == "node" then
+      pos = pointed_thing.under
+    else
+      local p = user:get_pos()
+      pos = vector.new(blueprint_tool.round(p.x), blueprint_tool.round(p.y) + 1, blueprint_tool.round(p.z))
+    end
 
     local slot_idx, was_assigned = get_or_assign_slot(playerName, itemstack)
 
     if user:get_player_control().sneak then
       local final, adjusted = blueprint_tool.logic.set_pos2(itemstack, pos)
+      local pos1, _ = blueprint_tool.logic.get_selection(itemstack)
+      blueprint_tool.entity.show_area(playerName, pos1, final)
       if not slot_idx then
         notify(playerName, "No empty slot available - open menu to pick one")
       else
@@ -247,6 +295,8 @@ minetest.register_tool("blueprint_tool:creation_tool", {
       end
     else
       local final, adjusted = blueprint_tool.logic.set_pos1(itemstack, pos)
+      local _, pos2 = blueprint_tool.logic.get_selection(itemstack)
+      blueprint_tool.entity.show_area(playerName, final, pos2)
       if not slot_idx then
         notify(playerName, "No empty slot available - open menu to pick one")
       else

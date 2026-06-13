@@ -1,5 +1,8 @@
 blueprint_tool.TRANSLATOR = minetest.get_translator(blueprint_tool.MODNAME)
 
+blueprint_tool.COLOR_ACCENT = "#9999FF"
+blueprint_tool.COLOR_WARN   = "#FF8800"
+
 -- formspec-escaped translation
 blueprint_tool.FTRANSLATOR = function(...)
   return minetest.formspec_escape(blueprint_tool.TRANSLATOR(...))
