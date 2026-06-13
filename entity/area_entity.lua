@@ -1,6 +1,14 @@
 local ENAME = "blueprint_tool:area_entity"
-local TEX = "blueprint_area_entity.png"
 local LIFETIME = 30
+
+-- Texture indices: +Y, -Y, +X, -X, +Z, -Z  (top, bottom, right, left, front, back)
+-- Texture indices: +Y, -Y, +X, -X, +Z, -Z  (top, bottom, right, left, front, back)
+local TEX_TOP   = "blueprint_area_entity_u.png"
+local TEX_BOT   = "blueprint_area_entity_d.png"
+local TEX_RIGHT = "blueprint_area_entity_r.png"
+local TEX_LEFT  = "blueprint_area_entity_l.png"
+local TEX_FRONT = "blueprint_area_entity_f.png"
+local TEX_BACK  = "blueprint_area_entity_b.png"
 
 -- [playerName] = entity object ref
 local active_entities = {}
@@ -12,10 +20,10 @@ minetest.register_entity(ENAME, {
   collisionbox = {0, 0, 0, 0, 0, 0},
   selectionbox = {0, 0, 0, 0, 0, 0},
   backface_culling = false,
-  glow = 5,
+  glow = 14,
   visual_size = {x = 1, y = 1, z = 1},
   static_save = false,
-  textures = {TEX, TEX, TEX, TEX, TEX, TEX},
+  textures = {TEX_TOP, TEX_BOT, TEX_RIGHT, TEX_LEFT, TEX_FRONT, TEX_BACK},
   lifetime = 0,
   player_name = "",
   on_activate = function(self, staticdata)

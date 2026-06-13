@@ -7,7 +7,8 @@ function blueprint_tool.logic.capture(itemstack, playerName)
   local result, err = blueprint_tool.logic.analyze_selection(pos1, pos2, playerName)
   if not result then return nil, err end
   return {
-    size  = result.size,
-    nodes = result.raw_nodes,
+    size    = result.size,
+    nodes   = result.raw_nodes,
+    forward = vector.new(0, 0, 1),  -- front face is always world +Z at capture time
   }
 end
