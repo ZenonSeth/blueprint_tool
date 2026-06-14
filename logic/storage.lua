@@ -123,6 +123,30 @@ function blueprint_tool.storage.count_used_slots(playerName)
   return count
 end
 
+function blueprint_tool.storage.get_players_with_blueprints()
+  local result = {}
+  local seen   = {}
+  for _, key in ipairs(ms:get_keys()) do
+    local name = key:match("^player_slots_(.+)$")
+    if name and not seen[name] then
+      seen[name] = true
+      local slots = player_slots[name]
+      if not slots then
+        local str = ms:get_string(key)
+        slots = (str ~= "" and minetest.deserialize(str)) or {}
+      end
+      for _, slot in pairs(slots) do
+        if slot and slot.bp_id then
+          result[#result + 1] = name
+          break
+        end
+      end
+    end
+  end
+  table.sort(result)
+  return result
+end
+
 function blueprint_tool.storage.get_next_empty_slot(playerName, limit)
   ensure_player_loaded(playerName)
   local slots = player_slots[playerName] or {}
