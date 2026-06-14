@@ -1,18 +1,33 @@
 blueprint_tool.TRANSLATOR = minetest.get_translator(blueprint_tool.MODNAME)
 
-function blueprint_tool.fs_header(w, h, pos, anchor, bgcolor)
+local BG_ASPECT = 1  -- background image width/height ratio
+
+function blueprint_tool.fs_header(w, h, pos, anchor)
   local px = pos    and pos.x    or 0.5
   local py = pos    and pos.y    or 0.5
   local ax = anchor and anchor.x or 0.5
   local ay = anchor and anchor.y or 0.5
-  local bg = bgcolor or "#000000A0"
+
+  local rw, rh
+  if (w / h) > BG_ASPECT then
+    rw = w
+    rh = w / BG_ASPECT
+  else
+    rh = h
+    rw = h * BG_ASPECT
+  end
+
   return "formspec_version[4]size["..w..","..h.."]"..
     "position["..px..","..py.."]"..
     "anchor["..ax..","..ay.."]"..
-    "no_prepend[]bgcolor["..bg..";false]"
+    "no_prepend[]bgcolor[#00000000;neither]"..
+    "image[0,0;"..rw..","..rh..";blueprint_formspec_bg.png]"..
+    "style_type[button;bgimg=blueprint_button.png;bgimg_middle=6;border=false]"..
+    "style_type[button:hovered;bgimg=blueprint_button_hovered.png]"..
+    "style_type[button:pressed;bgimg=blueprint_button_pressed.png]"
 end
 
-blueprint_tool.COLOR_ACCENT = "#9999FF"
+blueprint_tool.COLOR_ACCENT = "#99FF99"
 blueprint_tool.COLOR_WARN   = "#FF8800"
 
 -- formspec-escaped translation

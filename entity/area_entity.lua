@@ -43,7 +43,7 @@ minetest.register_entity(ENAME, {
 })
 
 -- Shows (or updates) the area entity for a player.
--- pos2 is always the UNROTATED end (origin + bp.size) — visual_size stays in entity local frame.
+-- pos2 is always the UNROTATED end (origin + bp.size) - visual_size stays in entity local frame.
 -- angle: Y-axis CW rotation in degrees (0/90/180/270). The center is adjusted for 90/270 since
 -- swapping x/z extents shifts it, and yaw handles the visual rotation.
 function blueprint_tool.entity.show_area(playerName, pos1, pos2, angle)

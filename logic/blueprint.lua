@@ -1,4 +1,4 @@
-local POSITION_EXPIRY = 3600  -- 1 hour in seconds
+local POSITION_EXPIRY = 300  -- in seconds
 
 local function clamp_to_anchor(anchor, other)
   local s = blueprint_tool.settings

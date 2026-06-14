@@ -154,9 +154,9 @@ local function build_main_formspec(playerName, itemstack)
 
   return blueprint_tool.fs_header(17.5, 2.8, {x=0.5, y=0.85}, {x=0.5, y=0.5}, "#00000033")..
     "label[0.2,0.50;"..minetest.formspec_escape(slot_label).."]"..
-    "button[3.1,0.2;1.3,0.65;pick_slot;Pick Slot]"..
+    "button[3.1,0.2;1.5,0.65;pick_slot;Pick Slot]"..
     "field[0.2,0.85;2.8,0.65;slot_name;;"..minetest.formspec_escape(current_name).."]"..
-    "button[3.1,0.85;1.3,0.65;rename;Rename]"..
+    "button[3.1,0.85;1.5,0.65;rename;Rename]"..
     override_line..
     face_btns..
     "label[13.3,0.35;Pos 1: "..minetest.formspec_escape(pos1_str).."]"..
@@ -248,7 +248,8 @@ local function build_analysis_formspec(playerName, analysis, show_capture_btn)
     entries[#entries + 1] = minetest.formspec_escape(entry.count.."x  "..entry.display_name)
   end
   local list_str = table.concat(entries, ",")
-  fs = fs.."textlist[0.3,"..y..";7.9,5.0;node_list;"..list_str..";0;false]"
+  fs = fs.."image["..(0.3-0.1)..","..(y-0.1)..";"..(7.9+0.2)..",5.2;blueprint_button.png;6]"..
+    "textlist[0.3,"..y..";7.9,5.0;node_list;"..list_str..";0;true]"
 
   local btn_y = 8.1
   if show_capture_btn then

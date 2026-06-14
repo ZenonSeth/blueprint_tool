@@ -107,7 +107,7 @@ local function build_main_formspec(playerName, itemstack)
 
   return blueprint_tool.fs_header(17.5, 2.8, {x=0.5, y=0.85}, {x=0.5, y=0.5}, "#00000033")..
     "label[0.2,0.5;"..minetest.formspec_escape(slot_label).."]"..
-    "button[3.1,0.2;1.3,0.65;pick_slot;Pick Slot]"..
+    "button[3.1,0.2;1.5,0.65;pick_slot;Pick Slot]"..
     axis_btns..
     rot_btns..
     "label[11.5,0.4;Origin: "..minetest.formspec_escape(origin_str).."]"..
@@ -153,8 +153,9 @@ local function build_analyze_formspec(playerName, bp_ana, placement, has_bp, has
     for _, entry in ipairs(bp_ana.nodes) do
       entries[#entries + 1] = minetest.formspec_escape(entry.count.."x  "..entry.display_name)
     end
-    fs = fs.."textlist["..LEFT_X..","..y..";"..LIST_W..",5.5;node_list;"..
-      table.concat(entries, ",")..";0;false]"
+    fs = fs.."image["..(LEFT_X-0.1)..","..(y-0.1)..";"..(LIST_W+0.2)..",5.7;blueprint_button.png;10]"..
+      "textlist["..LEFT_X..","..y..";"..LIST_W..",5.5;node_list;"..
+      table.concat(entries, ",")..";0;true]"
   else
     fs = fs.."label["..LEFT_X..","..PANEL_Y..";"..
       minetest.formspec_escape(minetest.colorize(blueprint_tool.COLOR_WARN, "No blueprint selected")).."]"
