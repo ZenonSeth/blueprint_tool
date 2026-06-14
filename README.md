@@ -28,9 +28,44 @@ Face labels and colors:
 - **Pick Slot** -- choose which blueprint slot to save into
 - **Rename** -- name the slot
 - **Show / Hide Volume** -- toggle the area overlay entity
+- **Adjust Volume** -- open a floating panel to nudge each face ±1 node at a time
 - **Clear** -- clear Corner 1 or Corner 2
 - **Analyze** -- preview the node list and count before capturing
 - **Capture** -- save the selected region into the active slot
+
+> Corner positions expire after **1 hour**. Punch nodes again if the positions show as unset.
+
+---
+
+### Blueprint Placer Tool
+
+Used to select a captured blueprint and place it into the world.
+
+**Controls:**
+- **Punch** a node -- set the paste origin (bottom-left-front corner of where the blueprint will land); requires a blueprint to be selected first
+- **Right-click** -- open the placer menu
+
+**Menu options:**
+- **Pick Blueprint** -- choose from your captured blueprints (empty slots are hidden)
+- **Show / Hide Volume** -- toggle the area overlay showing where the blueprint will land
+- **Adjust Volume** -- open a floating panel to shift the paste origin along X / Y / Z one node at a time
+- **Paste** -- place the blueprint *(not yet implemented)*
+
+**Placer menu panels:**
+
+The menu shows two side-by-side analysis panels whenever a blueprint is selected:
+
+- **Blueprint Analysis** (left) -- the node contents of the selected blueprint: total node count, liquid node count, and a scrollable breakdown by node type
+- **Placement Analysis** (right) -- a live scan of the destination, computed each time the menu opens:
+  - *Protected* -- positions blocked by area protection
+  - *Already in place* -- nodes that are already correct at the destination
+  - *Will replace* -- buildable-to nodes (liquids etc.) that will be overwritten
+  - *Needs digging* -- solid nodes that must be dug before placing
+  - *Undiggable* -- nodes with no standard dig groups (bedrock-equivalents); these positions will be skipped
+  - *Will place* -- nodes the player has in inventory and can place (or all nodes if creative/give priv)
+  - *Missing* -- nodes not in inventory (hidden if zero)
+
+> The paste origin expires after **1 hour**. Punch a node again to reset it.
 
 ---
 
