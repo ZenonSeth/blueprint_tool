@@ -204,8 +204,10 @@ local function build_slot_picker_formspec(playerName, page)
     local y = 1.1
     for i = start_i, end_i do
       local entry = filled[i]
-      local label = entry.index..". "..
-        (entry.slot.name ~= "" and entry.slot.name or "(unnamed)")
+      local bp   = blueprint_tool.storage.get_blueprint(entry.slot.bp_id)
+      local name = entry.slot.name ~= "" and entry.slot.name or "(unnamed)"
+      local date = bp and bp.captured_at and os.date("%Y-%m-%d %H:%M", bp.captured_at) or ""
+      local label = entry.index..". "..name..(date ~= "" and "  ["..date.."]" or "")
       fs = fs.."button[0.3,"..y..";7.9,0.65;slot_"..entry.index..";"..
         minetest.formspec_escape(label).."]"
       y = y + 0.72

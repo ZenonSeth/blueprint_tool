@@ -167,11 +167,15 @@ local function build_slot_picker_formspec(playerName, page)
   for i = start_slot, end_slot do
     local slot_data = blueprint_tool.storage.get_player_slot(playerName, i)
     local label
-    if slot_data then
-      local status = slot_data.bp_id and "(Filled)" or "(Empty)"
-      label = i..". "..status.." "..slot_data.name
+    if slot_data and slot_data.bp_id then
+      local bp   = blueprint_tool.storage.get_blueprint(slot_data.bp_id)
+      local name = slot_data.name ~= "" and slot_data.name or "(unnamed)"
+      local date = bp and bp.captured_at and os.date("%Y-%m-%d %H:%M", bp.captured_at) or ""
+      label = i..". "..name..(date ~= "" and "  ["..date.."]" or "")
+    elseif slot_data then
+      label = i..". (empty)  "..slot_data.name
     else
-      label = i..". (Empty)"
+      label = i..". (empty)"
     end
     fs = fs.."button[0.3,"..y..";7.9,0.65;slot_"..i..";"..minetest.formspec_escape(label).."]"
     y = y + 0.72
