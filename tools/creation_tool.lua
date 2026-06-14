@@ -535,6 +535,10 @@ minetest.register_tool("blueprint_tool:creation_tool", {
   on_use = function(itemstack, user, pointed_thing)
     if not user or not user:is_player() then return end
     local playerName = user:get_player_name()
+    if not blueprint_tool.player_has_access(playerName) then
+      notify(playerName, "You don't have permission to use blueprint tools")
+      return itemstack
+    end
     local pos
     if pointed_thing.type == "node" then
       pos = pointed_thing.under
@@ -581,6 +585,10 @@ minetest.register_tool("blueprint_tool:creation_tool", {
   on_place = function(itemstack, placer, pointed_thing)
     if not placer or not placer:is_player() then return end
     local playerName = placer:get_player_name()
+    if not blueprint_tool.player_has_access(playerName) then
+      notify(playerName, "You don't have permission to use blueprint tools")
+      return itemstack
+    end
     local _, was_assigned = get_or_assign_slot(playerName, itemstack)
     if was_assigned then placer:set_wielded_item(itemstack) end
     show_main(playerName, itemstack)

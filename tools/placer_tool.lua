@@ -494,6 +494,10 @@ minetest.register_tool("blueprint_tool:placer_tool", {
   on_use = function(itemstack, user, pointed_thing)
     if not user or not user:is_player() then return end
     local playerName = user:get_player_name()
+    if not blueprint_tool.player_has_access(playerName) then
+      notify(playerName, "You don't have permission to use blueprint tools")
+      return itemstack
+    end
 
     local slot_idx  = get_active_slot(itemstack)
     local slot_data = slot_idx and blueprint_tool.storage.get_player_slot(playerName, slot_idx)
@@ -520,7 +524,12 @@ minetest.register_tool("blueprint_tool:placer_tool", {
 
   on_place = function(itemstack, placer, pointed_thing)
     if not placer or not placer:is_player() then return end
-    show_main(placer:get_player_name(), itemstack)
+    local playerName = placer:get_player_name()
+    if not blueprint_tool.player_has_access(playerName) then
+      notify(playerName, "You don't have permission to use blueprint tools")
+      return itemstack
+    end
+    show_main(playerName, itemstack)
   end,
 
   on_secondary_use = function(itemstack, user, pointed_thing)
