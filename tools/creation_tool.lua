@@ -257,6 +257,7 @@ local function build_finetune_formspec(playerName, itemstack)
     size_str = w.."x"..h.."x"..d
   end
 
+  local slot_idx = get_active_slot(itemstack)
   local bw, bh = 0.6, 0.6
   local y1, y2 = 0.2, 1.0
 
@@ -266,7 +267,11 @@ local function build_finetune_formspec(playerName, itemstack)
       "button["..(gx+1.85)..","..gy..";"..bw..","..bh..";"..plus_name..";+]"
   end
 
-  return blueprint_tool.fs_header(10.5, 2.0, {x=0.5, y=0.85}, {x=0.5, y=0.5}, "#00000033")..
+  local capture_btn = slot_idx
+    and "button[10.5,"..y2..";1.5,"..bh..";ft_capture;Capture]"
+    or  ""
+
+  return blueprint_tool.fs_header(12.2, 2.0, {x=0.5, y=0.85}, {x=0.5, y=0.5}, "#00000033")..
     face_group(0.2, y1, "Front:", "ft_front_minus", "ft_front_plus")..
     face_group(3.2, y1, "Up:",    "ft_up_minus",    "ft_up_plus")..
     face_group(6.2, y1, "Left:",  "ft_left_minus",  "ft_left_plus")..
@@ -274,7 +279,8 @@ local function build_finetune_formspec(playerName, itemstack)
     face_group(3.2, y2, "Down:",  "ft_down_minus",  "ft_down_plus")..
     face_group(6.2, y2, "Right:", "ft_right_minus", "ft_right_plus")..
     "label[9.0,"..(y1+0.1)..";Size: "..minetest.formspec_escape(size_str).."]"..
-    "button[9.0,"..y2..";1.3,"..bh..";ft_return;< Back]"
+    "button[9.0,"..y2..";1.3,"..bh..";ft_return;< Back]"..
+    capture_btn
 end
 
 local function show_main(playerName, itemstack)
@@ -440,6 +446,32 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
   if formname == "blueprint_tool:finetune" then
     if fields.ft_return then
       show_main(playerName, itemstack)
+      return
+    end
+
+    if fields.ft_capture then
+      local ft_slot_idx, assigned = get_or_assign_slot(playerName, itemstack)
+      if not ft_slot_idx then
+        notify(playerName, "No slot selected - pick one first")
+        show_finetune(playerName, itemstack)
+        return
+      end
+      if assigned then player:set_wielded_item(itemstack) end
+      local bp, err = blueprint_tool.logic.capture(itemstack, playerName)
+      if not bp then
+        notify(playerName, "Capture failed: "..err)
+        show_finetune(playerName, itemstack)
+        return
+      end
+      local existing = blueprint_tool.storage.get_player_slot(playerName, ft_slot_idx)
+      if existing and existing.bp_id then
+        blueprint_tool.storage.delete_blueprint(existing.bp_id)
+      end
+      local id   = blueprint_tool.storage.store_blueprint(bp)
+      local name = sanitize_name(fields.slot_name or "")
+      blueprint_tool.storage.set_player_slot(playerName, ft_slot_idx, { name = name, bp_id = id })
+      minetest.close_formspec(playerName, "blueprint_tool:finetune")
+      notify(playerName, "Captured! " .. #bp.nodes .. " node(s) saved to slot " .. ft_slot_idx)
       return
     end
 

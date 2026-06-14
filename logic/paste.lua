@@ -90,6 +90,7 @@ function blueprint_tool.logic.start_paste(playerName, bp, origin)
     skipped_protected = 0,
     skipped_no_item   = {},  -- node_name -> count
     unknown_nodes     = {},  -- node_name -> count
+    cannot_dig        = {},  -- node_name -> count
     cancelled         = false,
   }
 
@@ -153,11 +154,16 @@ minetest.register_globalstep(function(dtime)
           goto continue
         end
 
-        -- 5. Undiggable solid: cannot clear the way, skip without consuming an item.
+        -- 5. Solid node checks: skip without consuming an item if we can't clear the way.
         local dest_def = minetest.registered_nodes[dest_node.name]
-        if dest_def and not dest_def.buildable_to
-           and not blueprint_tool.logic.is_diggable(dest_def) then
-          goto continue
+        if dest_def and not dest_def.buildable_to then
+          if not blueprint_tool.logic.is_diggable(dest_def) then
+            goto continue
+          end
+          if dest_def.can_dig and not dest_def.can_dig(dest_pos, player) then
+            result.cannot_dig[dest_node.name] = (result.cannot_dig[dest_node.name] or 0) + 1
+            goto continue
+          end
         end
 
         -- 6. Inventory check: consume item before modifying the world.
@@ -166,9 +172,21 @@ minetest.register_globalstep(function(dtime)
           goto continue
         end
 
-        -- 7. Dig existing solid node.
+        -- 7. Dig existing solid node; creative/give players get no drops.
         if dest_def and not dest_def.buildable_to then
-          minetest.remove_node(dest_pos)
+          if has_bypass(player) then
+            minetest.remove_node(dest_pos)
+          else
+            local drops = minetest.get_node_drops(dest_node.name, "")
+            minetest.remove_node(dest_pos)
+            local inv = player:get_inventory()
+            for _, drop in ipairs(drops) do
+              local leftover = inv:add_item("main", drop)
+              if not leftover:is_empty() then
+                minetest.add_item(player:get_pos(), leftover)
+              end
+            end
+          end
         end
 
         -- 8. Place the node.

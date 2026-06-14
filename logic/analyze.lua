@@ -120,12 +120,15 @@ end
 --     inventory_skipped = bool,  -- true when give/creative_mode bypassed inventory check
 --   }
 function blueprint_tool.logic.analyze_placement(bp, origin, playerName)
-  local protected       = 0
-  local already_correct = 0
+  local protected        = 0
+  local already_correct  = 0
   local will_be_replaced = 0
-  local needs_digging   = 0
-  local undiggable      = 0
-  local needed          = {}  -- name -> count needed from inventory
+  local needs_digging    = 0
+  local undiggable       = 0
+  local cannot_dig_counts = {}  -- name -> count (diggable by groups but can_dig() returns false)
+  local needed           = {}   -- name -> count needed from inventory
+
+  local player = minetest.get_player_by_name(playerName)
 
   for _, entry in ipairs(bp.nodes) do
     local dest_pos = vector.add(origin, entry.offset)
@@ -160,10 +163,15 @@ function blueprint_tool.logic.analyze_placement(bp, origin, playerName)
       goto continue
     end
 
-    -- 4. Solid node: diggable or undiggable.
+    -- 4. Solid node: diggable, blocked by can_dig, or fully undiggable.
     if is_diggable(dest_def) then
-      needs_digging = needs_digging + 1
-      needed[entry.name] = (needed[entry.name] or 0) + 1
+      if dest_def.can_dig and not dest_def.can_dig(dest_pos, player) then
+        cannot_dig_counts[dest_node.name] = (cannot_dig_counts[dest_node.name] or 0) + 1
+        -- won't attempt to place, so no inventory needed
+      else
+        needs_digging = needs_digging + 1
+        needed[entry.name] = (needed[entry.name] or 0) + 1
+      end
     else
       undiggable = undiggable + 1
       -- won't attempt to place, so no inventory needed
@@ -208,12 +216,15 @@ function blueprint_tool.logic.analyze_placement(bp, origin, playerName)
     end)
   end
 
+  local cannot_dig_nodes = build_sorted_list(cannot_dig_counts)
+
   return {
     protected         = protected,
     already_correct   = already_correct,
     will_be_replaced  = will_be_replaced,
     needs_digging     = needs_digging,
     undiggable        = undiggable,
+    cannot_dig_nodes  = cannot_dig_nodes,
     will_place        = will_place,
     missing           = missing,
     missing_nodes     = missing_nodes,

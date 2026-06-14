@@ -62,7 +62,7 @@ local function build_main_formspec(playerName, itemstack, placement)
 
   local has_bp    = slot_data and slot_data.bp_id
   local paste_btn = (has_bp and origin)
-    and "button[11.5,1.4;3.5,0.7;paste;Paste]"
+    and "button[11.5,1.4;3.5,0.7;place;Place]"
     or  ""
   local vol_btn
   if has_bp then
@@ -156,6 +156,13 @@ local function build_main_formspec(playerName, itemstack, placement)
         "Undiggable: "..tostring(placement.undiggable).." nodes (cannot place)"))
     end
 
+    if placement.cannot_dig_nodes and #placement.cannot_dig_nodes > 0 then
+      row(minetest.colorize(warn, "Nodes that don't allow being dug up:"))
+      for _, entry in ipairs(placement.cannot_dig_nodes) do
+        row("  "..entry.count.."x  "..entry.display_name)
+      end
+    end
+
     y = y + 0.2  -- gap before inventory summary
 
     if placement.inventory_skipped then
@@ -241,11 +248,16 @@ local function build_adjust_formspec_full(itemstack, bp)
       "button["..(gx+1.3)..","..y1..";"..bw..","..bh..";"..plus_name..";+]"
   end
 
-  return blueprint_tool.fs_header(10.5, 2.0, {x=0.5, y=0.85}, {x=0.5, y=0.5}, "#00000033")..
+  local place_btn = (bp and origin)
+    and "button[10.5,"..y1..";1.5,"..bh..";pa_place;Place]"
+    or  ""
+
+  return blueprint_tool.fs_header(12.2, 2.0, {x=0.5, y=0.85}, {x=0.5, y=0.5}, "#00000033")..
     axis_group(0.2,  "X:", "pa_x_minus", "pa_x_plus")..
     axis_group(2.5,  "Y:", "pa_y_minus", "pa_y_plus")..
     axis_group(4.8,  "Z:", "pa_z_minus", "pa_z_plus")..
     "button[9.0,"..y1..";1.3,"..bh..";pa_return;X]"..
+    place_btn..
     "label[0.2,1.1;Pos1: "..minetest.formspec_escape(pos1_str)..
       "  Pos2: "..minetest.formspec_escape(pos2_str).."]"
 end
@@ -298,6 +310,36 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
       return
     end
 
+    if fields.pa_place then
+      local slot_idx  = get_active_slot(itemstack)
+      local slot_data = slot_idx and blueprint_tool.storage.get_player_slot(playerName, slot_idx)
+      local bp        = slot_data and slot_data.bp_id and
+                        blueprint_tool.storage.get_blueprint(slot_data.bp_id)
+      local origin    = blueprint_tool.logic.get_origin(itemstack)
+
+      if not bp or not origin then
+        notify(playerName, "Select a blueprint and set an origin first")
+        return
+      end
+
+      if blueprint_tool.logic.get_paste_task(playerName) then
+        minetest.close_formspec(playerName, "blueprint_tool:placer_adjust")
+        notify(playerName, "A placement is already in progress. Use /blueprint_cancel to stop it.")
+        return
+      end
+
+      local ok, err = blueprint_tool.logic.start_paste(playerName, bp, origin)
+      if not ok then
+        notify(playerName, err)
+        return
+      end
+
+      blueprint_tool.entity.hide_area(playerName)
+      minetest.close_formspec(playerName, "blueprint_tool:placer_adjust")
+      notify(playerName, "Starting placement...")
+      return
+    end
+
     local AXIS_DELTAS = {
       pa_x_plus  = vector.new( 1, 0, 0),
       pa_x_minus = vector.new(-1, 0, 0),
@@ -328,7 +370,7 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
   end
 
   if formname == "blueprint_tool:placer_main" then
-    if fields.paste then
+    if fields.place then
       local slot_idx  = get_active_slot(itemstack)
       local slot_data = slot_idx and blueprint_tool.storage.get_player_slot(playerName, slot_idx)
       local bp        = slot_data and slot_data.bp_id and
@@ -352,7 +394,7 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
         return
       end
 
-      blueprint_tool.entity.show_area(playerName, origin, vector.add(origin, bp.size))
+      blueprint_tool.entity.hide_area(playerName)
       minetest.close_formspec(playerName, "blueprint_tool:placer_main")
       notify(playerName, "Starting placement...")
       return
