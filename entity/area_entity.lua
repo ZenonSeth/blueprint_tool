@@ -43,9 +43,10 @@ minetest.register_entity(ENAME, {
 })
 
 -- Shows (or updates) the area entity for a player.
--- If only pos1 is provided, shows a 1x1x1 marker at that position.
--- If both are provided, shows the full volume.
-function blueprint_tool.entity.show_area(playerName, pos1, pos2)
+-- pos2 is always the UNROTATED end (origin + bp.size) — visual_size stays in entity local frame.
+-- angle: Y-axis CW rotation in degrees (0/90/180/270). The center is adjusted for 90/270 since
+-- swapping x/z extents shifts it, and yaw handles the visual rotation.
+function blueprint_tool.entity.show_area(playerName, pos1, pos2, angle)
   if not pos1 then return end
 
   local existing = active_entities[playerName]
@@ -56,14 +57,19 @@ function blueprint_tool.entity.show_area(playerName, pos1, pos2)
 
   local center, sx, sy, sz
   if pos2 then
-    center = vector.new(
-      (pos1.x + pos2.x) / 2,
-      (pos1.y + pos2.y) / 2,
-      (pos1.z + pos2.z) / 2
-    )
-    sx = math.abs(pos2.x - pos1.x) + 1.1
-    sy = math.abs(pos2.y - pos1.y) + 1.1
-    sz = math.abs(pos2.z - pos1.z) + 1.1
+    local rx = math.abs(pos2.x - pos1.x)
+    local ry = math.abs(pos2.y - pos1.y)
+    local rz = math.abs(pos2.z - pos1.z)
+    local mn = vector.new(math.min(pos1.x, pos2.x), math.min(pos1.y, pos2.y), math.min(pos1.z, pos2.z))
+
+    -- For 90/270 the world-space x/z extents swap, so the center shifts accordingly.
+    local cx_half = (angle == 90 or angle == 270) and rz / 2 or rx / 2
+    local cz_half = (angle == 90 or angle == 270) and rx / 2 or rz / 2
+    center = vector.new(mn.x + cx_half, mn.y + ry / 2, mn.z + cz_half)
+
+    sx = rx + 1.1
+    sy = ry + 1.1
+    sz = rz + 1.1
   else
     center = vector.copy(pos1)
     sx, sy, sz = 1.1, 1.1, 1.1
@@ -72,6 +78,7 @@ function blueprint_tool.entity.show_area(playerName, pos1, pos2)
   local ent = minetest.add_entity(center, ENAME, playerName)
   if ent then
     ent:set_properties({visual_size = {x = sx, y = sy, z = sz}})
+    ent:set_yaw((angle or 0) * math.pi / 180)
     active_entities[playerName] = ent
   end
 end

@@ -27,9 +27,8 @@ Face labels and colors:
 **Menu options:**
 - **Pick Slot** -- choose which blueprint slot to save into
 - **Rename** -- name the slot
-- **Show / Hide Volume** -- toggle the area overlay entity
-- **Adjust Volume** -- open a floating panel to nudge each face ±1 node at a time; also has a **Capture** button
-- **Clear** -- clear Corner 1 or Corner 2
+- **Front / Back / Top / Bottom / Left / Right ±** -- nudge each face of the selection ±1 node at a time (only shown when both corners are set)
+- **Clear Both** -- clear both corner positions
 - **Analyze** -- preview the node list and count before capturing
 - **Capture** -- save the selected region into the active slot
 
@@ -47,16 +46,17 @@ Used to select a captured blueprint and place it into the world.
 
 **Menu options:**
 - **Pick Blueprint** -- choose from your captured blueprints (empty slots are hidden)
-- **Show / Hide Volume** -- toggle the area overlay showing where the blueprint will land
-- **Adjust Volume** -- open a floating panel to shift the place origin along X / Y / Z one node at a time; also has a **Place** button
+- **X / Y / Z ±** -- shift the paste origin one node at a time along each axis (only shown when origin is set)
+- **Rotation** -- rotate the blueprint around the Y axis before placing: `0°` `90°` `180°` `270°` (active angle shown in angle brackets)
 - **Place** -- begin placing the blueprint into the world
+- **Analyze** -- open a detailed breakdown of the blueprint contents and placement impact
 
-**Placer menu panels:**
+**Analyze panel** (opened via the Analyze button):
 
-The menu shows two side-by-side analysis panels whenever a blueprint is selected:
+Shows two side-by-side panels:
 
 - **Blueprint Analysis** (left) -- the node contents of the selected blueprint: total node count, liquid node count, and a scrollable breakdown by node type
-- **Placement Analysis** (right) -- a live scan of the destination, computed each time the menu opens:
+- **Placement Analysis** (right) -- a live scan of the destination, computed each time the panel opens:
   - *Protected* -- positions blocked by area protection
   - *Already in place* -- nodes that are already correct at the destination
   - *Will replace* -- buildable-to nodes (liquids etc.) that will be overwritten

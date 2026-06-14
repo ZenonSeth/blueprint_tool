@@ -38,39 +38,38 @@ local function meta_clear_pos(itemstack, key)
 end
 
 function blueprint_tool.logic.get_selection(itemstack)
-  return meta_get_pos(itemstack, "pos1"), meta_get_pos(itemstack, "pos2")
+  return meta_get_pos(itemstack, "c_pos1"), meta_get_pos(itemstack, "c_pos2")
 end
 
 function blueprint_tool.logic.clear_pos1(itemstack)
-  meta_clear_pos(itemstack, "pos1")
+  meta_clear_pos(itemstack, "c_pos1")
 end
 
 function blueprint_tool.logic.clear_pos2(itemstack)
-  meta_clear_pos(itemstack, "pos2")
+  meta_clear_pos(itemstack, "c_pos2")
 end
 
 function blueprint_tool.logic.set_raw_selection(itemstack, pos1, pos2)
-  meta_set_pos(itemstack, "pos1", pos1)
-  meta_set_pos(itemstack, "pos2", pos2)
+  meta_set_pos(itemstack, "c_pos1", pos1)
+  meta_set_pos(itemstack, "c_pos2", pos2)
 end
 
--- Returns final pos1 (possibly clamped), whether it was adjusted, and the modified itemstack.
+-- Sets pos1 freely; if pos2 exists, shifts it to preserve the previous dimensions.
+-- Returns final pos1, whether pos2 was moved.
 function blueprint_tool.logic.set_pos1(itemstack, pos)
-  local _, pos2 = blueprint_tool.logic.get_selection(itemstack)
-  local final = vector.copy(pos)
-  local adjusted = false
-  if pos2 then
-    local clamped = clamp_to_anchor(pos2, pos)
-    if not vector.equals(clamped, pos) then
-      final = clamped
-      adjusted = true
-    end
+  local old_pos1, old_pos2 = blueprint_tool.logic.get_selection(itemstack)
+  meta_set_pos(itemstack, "c_pos1", pos)
+  local pos2_moved = false
+  if old_pos1 and old_pos2 then
+    local offset = vector.subtract(old_pos2, old_pos1)
+    local new_pos2 = vector.add(pos, offset)
+    meta_set_pos(itemstack, "c_pos2", new_pos2)
+    pos2_moved = true
   end
-  meta_set_pos(itemstack, "pos1", final)
-  return final, adjusted
+  return pos, pos2_moved
 end
 
--- Returns final pos2 (possibly clamped), whether it was adjusted, and the modified itemstack.
+-- Returns final pos2 (possibly clamped), whether it was adjusted.
 function blueprint_tool.logic.set_pos2(itemstack, pos)
   local pos1, _ = blueprint_tool.logic.get_selection(itemstack)
   local final = vector.copy(pos)
@@ -82,7 +81,7 @@ function blueprint_tool.logic.set_pos2(itemstack, pos)
       adjusted = true
     end
   end
-  meta_set_pos(itemstack, "pos2", final)
+  meta_set_pos(itemstack, "c_pos2", final)
   return final, adjusted
 end
 
@@ -91,14 +90,14 @@ end
 ----------------------------------------------------------------
 
 function blueprint_tool.logic.get_origin(itemstack)
-  return meta_get_pos(itemstack, "origin")
+  return meta_get_pos(itemstack, "p_origin")
 end
 
 function blueprint_tool.logic.set_origin(itemstack, pos)
-  meta_set_pos(itemstack, "origin", pos)
+  meta_set_pos(itemstack, "p_origin", pos)
 end
 
 function blueprint_tool.logic.clear_origin(itemstack)
-  meta_clear_pos(itemstack, "origin")
+  meta_clear_pos(itemstack, "p_origin")
 end
 

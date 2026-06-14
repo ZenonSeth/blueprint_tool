@@ -19,22 +19,22 @@ local function sanitize_name(name)
   return (name or ""):gsub("[^A-Za-z0-9 _]", ""):sub(1, 32)
 end
 
-local function get_active_slot(itemstack)
-  local slot = itemstack:get_meta():get_int("active_slot")
+local function get_c_active_slot(itemstack)
+  local slot = itemstack:get_meta():get_int("c_active_slot")
   return slot > 0 and slot or nil
 end
 
-local function set_active_slot(itemstack, slot_idx)
-  itemstack:get_meta():set_int("active_slot", slot_idx or 0)
+local function set_c_active_slot(itemstack, slot_idx)
+  itemstack:get_meta():set_int("c_active_slot", slot_idx or 0)
 end
 
 local function get_or_assign_slot(playerName, itemstack)
-  local slot = get_active_slot(itemstack)
+  local slot = get_c_active_slot(itemstack)
   if slot then return slot, false end
   local limit = blueprint_tool.get_player_slot_limit(playerName)
   local next_slot = blueprint_tool.storage.get_next_empty_slot(playerName, limit)
   if next_slot then
-    set_active_slot(itemstack, next_slot)
+    set_c_active_slot(itemstack, next_slot)
     return next_slot, true
   end
   return nil, false
@@ -95,7 +95,7 @@ end
 
 local function build_main_formspec(playerName, itemstack)
   local limit = blueprint_tool.get_player_slot_limit(playerName)
-  local slot_idx = get_active_slot(itemstack)
+  local slot_idx = get_c_active_slot(itemstack)
   local slot_data = slot_idx and blueprint_tool.storage.get_player_slot(playerName, slot_idx)
 
   local slot_label
@@ -121,7 +121,7 @@ local function build_main_formspec(playerName, itemstack)
   local pos2_str = pos2 and minetest.pos_to_string(pos2) or "not set"
 
   local clear_btn = (pos1 or pos2)
-    and "button[13.3,1.4;2.5,0.55;clear_corners;Clear Both]"
+    and "button[13.3,1.4;2.5,0.55;clear_corners;Clear Pos]"
     or  ""
 
   local bw, bh = 0.6, 0.6
@@ -159,8 +159,8 @@ local function build_main_formspec(playerName, itemstack)
     "button[3.1,0.85;1.3,0.65;rename;Rename]"..
     override_line..
     face_btns..
-    "label[13.3,0.35;Corner 1: "..minetest.formspec_escape(pos1_str).."]"..
-    "label[13.3,0.9;Corner 2: "..minetest.formspec_escape(pos2_str).."]"..
+    "label[13.3,0.35;Pos 1: "..minetest.formspec_escape(pos1_str).."]"..
+    "label[13.3,0.9;Pos 2: "..minetest.formspec_escape(pos2_str).."]"..
     clear_btn..
     "button[13.3,2.1;1.9,0.6;capture;Capture]"..
     "button[15.3,2.1;1.9,0.6;analyze;Analyze]"
@@ -319,7 +319,7 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
       return
     end
 
-    local slot_idx = get_active_slot(itemstack)
+    local slot_idx = get_c_active_slot(itemstack)
 
     if fields.rename then
       if not slot_idx then
@@ -379,7 +379,7 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
     end
 
     if fields.analysis_capture then
-      local slot_idx = get_active_slot(itemstack)
+      local slot_idx = get_c_active_slot(itemstack)
       if not slot_idx then
         notify(playerName, "No slot selected - pick one first")
         return
@@ -426,7 +426,7 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
     for k in pairs(fields) do
       local idx = tonumber(k:match("^slot_(%d+)$"))
       if idx then
-        set_active_slot(itemstack, idx)
+        set_c_active_slot(itemstack, idx)
         player:set_wielded_item(itemstack)
         show_main(playerName, itemstack)
         return
@@ -440,7 +440,7 @@ end)
 ----------------------------------------------------------------
 
 minetest.register_tool("blueprint_tool:creation_tool", {
-  description = S("Blueprint Creation Tool\nPunch to set corner 1\nSneak + punch to set corner 2\nRight-click for options"),
+  description = S("Blueprint Creation Tool\nPunch: Set Pos 1 (origin)\nSneak+Punch: Set Pos 2\nRight-click: Menu"),
   short_description = S("Blueprint Creation Tool"),
   inventory_image = "creation_tool.png",
   wield_image = "creation_tool.png",
@@ -473,23 +473,23 @@ minetest.register_tool("blueprint_tool:creation_tool", {
       local pos1, _ = blueprint_tool.logic.get_selection(itemstack)
       blueprint_tool.entity.show_area(playerName, pos1, final)
       if not slot_idx then
-        notify(playerName, "No empty slot available - open menu to pick one")
+        notify(playerName, "No empty slot available - right-click to Pick Slot")
       else
         local msg = (was_assigned and ("Slot "..slot_idx.." assigned. ") or "")..
-          "Corner 2: "..minetest.pos_to_string(final)
-        if adjusted then msg = msg.." (clamped)" end
+          "Pos 2: "..minetest.pos_to_string(final)
+        if adjusted then msg = msg.." (clamped)\nPunch to set Pos 1 and move the origin" end
         notify(playerName, msg)
       end
     else
-      local final, adjusted = blueprint_tool.logic.set_pos1(itemstack, pos)
+      local final, pos2_moved = blueprint_tool.logic.set_pos1(itemstack, pos)
       local _, pos2 = blueprint_tool.logic.get_selection(itemstack)
       blueprint_tool.entity.show_area(playerName, final, pos2)
       if not slot_idx then
-        notify(playerName, "No empty slot available - open menu to pick one")
+        notify(playerName, "No empty slot available - right-click to Pick Slot")
       else
         local msg = (was_assigned and ("Slot "..slot_idx.." assigned. ") or "")..
-          "Corner 1: "..minetest.pos_to_string(final)
-        if adjusted then msg = msg.." (clamped)" end
+          "Pos 1: "..minetest.pos_to_string(final)
+        if pos2_moved then msg = msg.." (pos 2 moved)" end
         notify(playerName, msg)
       end
     end
@@ -503,6 +503,10 @@ minetest.register_tool("blueprint_tool:creation_tool", {
       notify(playerName, "You don't have permission to use blueprint tools")
       return itemstack
     end
+    if placer:get_player_control().sneak then
+      blueprint_tool.tools.swap_tool(placer, itemstack)
+      return
+    end
     local _, was_assigned = get_or_assign_slot(playerName, itemstack)
     if was_assigned then placer:set_wielded_item(itemstack) end
     show_main(playerName, itemstack)
@@ -511,6 +515,10 @@ minetest.register_tool("blueprint_tool:creation_tool", {
   on_secondary_use = function(itemstack, user, pointed_thing)
     if not user or not user:is_player() then return end
     local playerName = user:get_player_name()
+    if user:get_player_control().sneak then
+      blueprint_tool.tools.swap_tool(user, itemstack)
+      return
+    end
     local _, was_assigned = get_or_assign_slot(playerName, itemstack)
     if was_assigned then user:set_wielded_item(itemstack) end
     show_main(playerName, itemstack)

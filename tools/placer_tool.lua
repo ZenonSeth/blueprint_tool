@@ -8,13 +8,21 @@ local function notify(playerName, msg)
   blueprint_tool.show_popup(playerName, msg)
 end
 
-local function get_active_slot(itemstack)
-  local slot = itemstack:get_meta():get_int("active_slot")
+local function get_p_active_slot(itemstack)
+  local slot = itemstack:get_meta():get_int("p_active_slot")
   return slot > 0 and slot or nil
 end
 
-local function set_active_slot(itemstack, slot_idx)
-  itemstack:get_meta():set_int("active_slot", slot_idx or 0)
+local function set_p_active_slot(itemstack, slot_idx)
+  itemstack:get_meta():set_int("p_active_slot", slot_idx or 0)
+end
+
+local function get_rotation(itemstack)
+  return itemstack:get_meta():get_int("p_rotation")  -- 0/90/180/270, default 0
+end
+
+local function set_rotation(itemstack, angle)
+  itemstack:get_meta():set_int("p_rotation", angle % 360)
 end
 
 ----------------------------------------------------------------
@@ -37,7 +45,7 @@ end
 ----------------------------------------------------------------
 
 local function build_main_formspec(playerName, itemstack)
-  local slot_idx  = get_active_slot(itemstack)
+  local slot_idx  = get_p_active_slot(itemstack)
   local slot_data = slot_idx and blueprint_tool.storage.get_player_slot(playerName, slot_idx)
   local has_bp    = slot_data and slot_data.bp_id
 
@@ -73,6 +81,18 @@ local function build_main_formspec(playerName, itemstack)
       axis_group(9.3, "Z:", "pa_z_minus", "pa_z_plus")
   end
 
+  local angle = get_rotation(itemstack)
+  local function rot_label(deg)
+    local lbl = deg .. "\xc2\xb0"  -- degree sign UTF-8
+    return deg == angle and ("<" .. lbl .. ">") or lbl
+  end
+  local rot_btns =
+    "label[4.7,1.37;Rotation:]"..
+    "button[6.2,1.1;1.2,0.6;rot_0;"   ..rot_label(0)  .."]"..
+    "button[7.5,1.1;1.2,0.6;rot_90;"  ..rot_label(90) .."]"..
+    "button[8.8,1.1;1.2,0.6;rot_180;" ..rot_label(180).."]"..
+    "button[10.1,1.1;1.2,0.6;rot_270;"..rot_label(270).."]"
+
   local place_btn = (has_bp and origin)
     and "button[11.5,1.7;2.7,0.6;pa_place;Place]"
     or  ""
@@ -85,6 +105,7 @@ local function build_main_formspec(playerName, itemstack)
     "label[0.2,0.5;"..minetest.formspec_escape(slot_label).."]"..
     "button[3.1,0.2;1.3,0.65;pick_slot;Pick Slot]"..
     axis_btns..
+    rot_btns..
     "label[11.5,0.4;Origin: "..minetest.formspec_escape(origin_str).."]"..
     "label[11.5,0.95;End: "..minetest.formspec_escape(pos2_str).."]"..
     place_btn..
@@ -248,19 +269,19 @@ local function build_slot_picker_formspec(playerName, page)
 end
 
 local function show_main(playerName, itemstack)
-  local slot_idx  = get_active_slot(itemstack)
+  local slot_idx  = get_p_active_slot(itemstack)
   local slot_data = slot_idx and blueprint_tool.storage.get_player_slot(playerName, slot_idx)
   local bp        = slot_data and slot_data.bp_id and blueprint_tool.storage.get_blueprint(slot_data.bp_id)
   local origin    = blueprint_tool.logic.get_origin(itemstack)
   if bp and origin then
-    blueprint_tool.entity.show_area(playerName, origin, vector.add(origin, bp.size))
+    blueprint_tool.entity.show_area(playerName, origin, vector.add(origin, bp.size), get_rotation(itemstack))
   end
   minetest.show_formspec(playerName, "blueprint_tool:placer_main",
     build_main_formspec(playerName, itemstack))
 end
 
 local function show_analyze(playerName, itemstack)
-  local slot_idx  = get_active_slot(itemstack)
+  local slot_idx  = get_p_active_slot(itemstack)
   local slot_data = slot_idx and blueprint_tool.storage.get_player_slot(playerName, slot_idx)
   local has_bp    = slot_data and slot_data.bp_id
   local bp        = has_bp and blueprint_tool.storage.get_blueprint(slot_data.bp_id)
@@ -303,8 +324,18 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
       return
     end
 
+    local ROT_BTNS = { rot_0 = 0, rot_90 = 90, rot_180 = 180, rot_270 = 270 }
+    for btn, deg in pairs(ROT_BTNS) do
+      if fields[btn] then
+        set_rotation(itemstack, deg)
+        player:set_wielded_item(itemstack)
+        show_main(playerName, itemstack)
+        return
+      end
+    end
+
     if fields.pa_place then
-      local slot_idx  = get_active_slot(itemstack)
+      local slot_idx  = get_p_active_slot(itemstack)
       local slot_data = slot_idx and blueprint_tool.storage.get_player_slot(playerName, slot_idx)
       local bp        = slot_data and slot_data.bp_id and
                         blueprint_tool.storage.get_blueprint(slot_data.bp_id)
@@ -321,7 +352,8 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
         return
       end
 
-      local ok, err = blueprint_tool.logic.start_paste(playerName, bp, origin)
+      local angle = get_rotation(itemstack)
+      local ok, err = blueprint_tool.logic.start_paste(playerName, bp, origin, angle)
       if not ok then
         notify(playerName, err)
         return
@@ -348,11 +380,11 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
           local new_origin = vector.add(origin, delta)
           blueprint_tool.logic.set_origin(itemstack, new_origin)
           player:set_wielded_item(itemstack)
-          local slot_idx  = get_active_slot(itemstack)
+          local slot_idx  = get_p_active_slot(itemstack)
           local slot_data = slot_idx and blueprint_tool.storage.get_player_slot(playerName, slot_idx)
           local bp        = slot_data and slot_data.bp_id and blueprint_tool.storage.get_blueprint(slot_data.bp_id)
           if bp then
-            blueprint_tool.entity.show_area(playerName, new_origin, vector.add(new_origin, bp.size))
+            blueprint_tool.entity.show_area(playerName, new_origin, vector.add(new_origin, bp.size), get_rotation(itemstack))
           end
         end
         show_main(playerName, itemstack)
@@ -399,7 +431,7 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
           return
         end
 
-        set_active_slot(itemstack, idx)
+        set_p_active_slot(itemstack, idx)
         player:set_wielded_item(itemstack)
 
         local bp = blueprint_tool.storage.get_blueprint(slot_data.bp_id)
@@ -436,12 +468,12 @@ minetest.register_tool("blueprint_tool:placer_tool", {
       return itemstack
     end
 
-    local slot_idx  = get_active_slot(itemstack)
+    local slot_idx  = get_p_active_slot(itemstack)
     local slot_data = slot_idx and blueprint_tool.storage.get_player_slot(playerName, slot_idx)
     local bp        = slot_data and slot_data.bp_id and blueprint_tool.storage.get_blueprint(slot_data.bp_id)
 
     if not bp then
-      notify(playerName, "No blueprint picked yet")
+      notify(playerName, "No blueprint picked yet - right-click to Pick Slot")
       return itemstack
     end
 
@@ -454,7 +486,7 @@ minetest.register_tool("blueprint_tool:placer_tool", {
     end
 
     blueprint_tool.logic.set_origin(itemstack, pos)
-    blueprint_tool.entity.show_area(playerName, pos, vector.add(pos, bp.size))
+    blueprint_tool.entity.show_area(playerName, pos, vector.add(pos, bp.size), get_rotation(itemstack))
     notify(playerName, "Paste origin set: "..minetest.pos_to_string(pos))
     return itemstack
   end,
@@ -466,11 +498,19 @@ minetest.register_tool("blueprint_tool:placer_tool", {
       notify(playerName, "You don't have permission to use blueprint tools")
       return itemstack
     end
+    if placer:get_player_control().sneak then
+      blueprint_tool.tools.swap_tool(placer, itemstack)
+      return
+    end
     show_main(playerName, itemstack)
   end,
 
   on_secondary_use = function(itemstack, user, pointed_thing)
     if not user or not user:is_player() then return end
+    if user:get_player_control().sneak then
+      blueprint_tool.tools.swap_tool(user, itemstack)
+      return
+    end
     show_main(user:get_player_name(), itemstack)
   end,
 })

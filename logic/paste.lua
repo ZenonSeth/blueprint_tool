@@ -67,14 +67,21 @@ function blueprint_tool.logic.get_last_paste_result(playerName)
 end
 
 -- Starts a paste task. Returns true, or nil + error string.
-function blueprint_tool.logic.start_paste(playerName, bp, origin)
+-- angle: Y-axis rotation in degrees (0/90/180/270), default 0.
+function blueprint_tool.logic.start_paste(playerName, bp, origin, angle)
   if active_placements[playerName] then
     return nil, "A placement is already in progress"
   end
 
-  -- Copy and sort nodes bottom-to-top by Y offset.
+  angle = (angle or 0) % 360
+
+  -- Build rotated node list, sorted bottom-to-top.
   local nodes = {}
-  for i, entry in ipairs(bp.nodes) do nodes[i] = entry end
+  for _, entry in ipairs(bp.nodes) do
+    local new_offset, _ = blueprint_tool.logic.rotate_offset(entry.offset, angle, bp.size)
+    local new_param2 = blueprint_tool.logic.rotate_param2(entry.name, entry.param2, angle)
+    nodes[#nodes + 1] = { offset = new_offset, name = entry.name, param2 = new_param2 }
+  end
   table.sort(nodes, function(a, b) return a.offset.y < b.offset.y end)
 
   active_placements[playerName] = {
@@ -191,6 +198,9 @@ minetest.register_globalstep(function(dtime)
 
         -- 8. Place the node (fires on_construct, after_place_node, etc.).
         blueprint_tool.place_node(dest_pos, { name = entry.name, param2 = entry.param2 }, player)
+        -- after_place_node callbacks (e.g. stairs) may override param2 with the player's
+        -- facing direction, so force the correct value back in immediately.
+        minetest.swap_node(dest_pos, { name = entry.name, param2 = entry.param2 })
         result.placed = result.placed + 1
 
         ::continue::
