@@ -74,6 +74,9 @@ local function build_main_formspec(playerName, itemstack, placement)
   else
     vol_btn = ""
   end
+  local adjust_btn = (has_bp and origin)
+    and "button[4.3,2.2;3.8,0.7;adjust_volume;Adjust Volume]"
+    or  ""
 
   local fs = blueprint_tool.fs_header(16.0, 9.5)..
     "button_exit[15.3,0.1;0.6,0.6;close;X]"..
@@ -82,6 +85,7 @@ local function build_main_formspec(playerName, itemstack, placement)
     "label[0.3,1.6;Origin: "..minetest.formspec_escape(origin_str).."]"..
     paste_btn..
     vol_btn..
+    adjust_btn..
     "label["..LEFT_X..","..PANEL_Y..";Blueprint Analysis]"..
     "label["..RIGHT_X..","..PANEL_Y..";Placement Analysis]"
 
@@ -219,6 +223,39 @@ local function build_slot_picker_formspec(playerName, page)
   return fs
 end
 
+-- TODO: add rotation buttons (0/90/180/270 around Y) here once rotation is implemented.
+local function build_adjust_formspec_full(itemstack, bp)
+  local origin  = blueprint_tool.logic.get_origin(itemstack)
+  local pos2    = origin and bp and vector.add(origin, bp.size)
+  local pos1_str = origin and minetest.pos_to_string(origin) or "?"
+  local pos2_str = pos2   and minetest.pos_to_string(pos2)   or "?"
+
+  local bw, bh = 0.6, 0.6
+  local y1 = 0.25
+
+  local function axis_group(gx, lbl, minus_name, plus_name)
+    return "label["..gx..","..y1..";"..lbl.."]"..
+      "button["..(gx+0.6)..","..y1..";"..bw..","..bh..";"..minus_name..";-]"..
+      "button["..(gx+1.3)..","..y1..";"..bw..","..bh..";"..plus_name..";+]"
+  end
+
+  return blueprint_tool.fs_header(10.5, 2.0, {x=0.5, y=0.85}, {x=0.5, y=0.5}, "#00000033")..
+    axis_group(0.2,  "X:", "pa_x_minus", "pa_x_plus")..
+    axis_group(2.5,  "Y:", "pa_y_minus", "pa_y_plus")..
+    axis_group(4.8,  "Z:", "pa_z_minus", "pa_z_plus")..
+    "button[9.0,"..y1..";1.3,"..bh..";pa_return;X]"..
+    "label[0.2,1.1;Pos1: "..minetest.formspec_escape(pos1_str)..
+      "  Pos2: "..minetest.formspec_escape(pos2_str).."]"
+end
+
+local function show_adjust(playerName, itemstack)
+  local slot_idx  = get_active_slot(itemstack)
+  local slot_data = slot_idx and blueprint_tool.storage.get_player_slot(playerName, slot_idx)
+  local bp        = slot_data and slot_data.bp_id and blueprint_tool.storage.get_blueprint(slot_data.bp_id)
+  minetest.show_formspec(playerName, "blueprint_tool:placer_adjust",
+    build_adjust_formspec_full(itemstack, bp))
+end
+
 local function show_main(playerName, itemstack)
   local placement
   local slot_idx  = get_active_slot(itemstack)
@@ -246,15 +283,56 @@ end
 
 minetest.register_on_player_receive_fields(function(player, formname, fields)
   if formname ~= "blueprint_tool:placer_main"
-  and formname ~= "blueprint_tool:placer_picker" then return end
+  and formname ~= "blueprint_tool:placer_picker"
+  and formname ~= "blueprint_tool:placer_adjust" then return end
 
   local playerName = player:get_player_name()
   local itemstack  = player:get_wielded_item()
   if itemstack:get_name() ~= "blueprint_tool:placer_tool" then return end
 
+  if formname == "blueprint_tool:placer_adjust" then
+    if fields.pa_return then
+      show_main(playerName, itemstack)
+      return
+    end
+
+    local AXIS_DELTAS = {
+      pa_x_plus  = vector.new( 1, 0, 0),
+      pa_x_minus = vector.new(-1, 0, 0),
+      pa_y_plus  = vector.new( 0, 1, 0),
+      pa_y_minus = vector.new( 0,-1, 0),
+      pa_z_plus  = vector.new( 0, 0, 1),
+      pa_z_minus = vector.new( 0, 0,-1),
+    }
+    for btn, delta in pairs(AXIS_DELTAS) do
+      if fields[btn] then
+        local origin = blueprint_tool.logic.get_origin(itemstack)
+        if origin then
+          local new_origin = vector.add(origin, delta)
+          blueprint_tool.logic.set_origin(itemstack, new_origin)
+          player:set_wielded_item(itemstack)
+          -- always show entity so player can see the adjusted position
+          local slot_idx  = get_active_slot(itemstack)
+          local slot_data = slot_idx and blueprint_tool.storage.get_player_slot(playerName, slot_idx)
+          local bp        = slot_data and slot_data.bp_id and blueprint_tool.storage.get_blueprint(slot_data.bp_id)
+          if bp then
+            blueprint_tool.entity.show_area(playerName, new_origin, vector.add(new_origin, bp.size))
+          end
+        end
+        show_adjust(playerName, itemstack)
+        return
+      end
+    end
+  end
+
   if formname == "blueprint_tool:placer_main" then
     if fields.pick_slot then
       show_slot_picker(playerName)
+      return
+    end
+
+    if fields.adjust_volume then
+      show_adjust(playerName, itemstack)
       return
     end
 

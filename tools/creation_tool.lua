@@ -130,7 +130,7 @@ local function build_main_formspec(playerName, itemstack)
 
   local finetune_btn = ""
   if pos1 and pos2 then
-    finetune_btn = "button[4.4,4.7;3.8,0.7;finetune;Fine-tune]"
+    finetune_btn = "button[4.4,4.7;3.8,0.7;finetune;Adjust Volume]"
   end
 
   return blueprint_tool.fs_header(8.5, 7.0)..
