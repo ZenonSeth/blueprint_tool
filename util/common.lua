@@ -20,6 +20,21 @@ blueprint_tool.FTRANSLATOR = function(...)
   return minetest.formspec_escape(blueprint_tool.TRANSLATOR(...))
 end
 
+-- Wrapper around core.place_node that corrects for item_place_node's buildable_to
+-- redirect. core.place_node hardcodes under = pos - {0,1,0}; if that block is
+-- buildable_to, item_place_node redirects placement there instead of pos. This
+-- function detects that case and passes pos + {0,1,0} so the redirect lands at pos.
+function blueprint_tool.place_node(pos, node, placer)
+  local below_pos = vector.new(pos.x, pos.y - 1, pos.z)
+  local below_node = minetest.get_node_or_nil(below_pos)
+  local below_def  = below_node and minetest.registered_nodes[below_node.name]
+  local place_pos  = (below_def and below_def.buildable_to)
+    and vector.new(pos.x, pos.y + 1, pos.z)
+    or  pos
+  blueprint_tool.load_position(place_pos)
+  minetest.place_node(place_pos, node, placer)
+end
+
 function blueprint_tool.load_position(pos)
   if pos.x < -30912 or pos.y < -30912 or pos.z < -30912 or
      pos.x >  30927 or pos.y >  30927 or pos.z >  30927 then return end

@@ -116,9 +116,9 @@ end
 
 minetest.register_globalstep(function(dtime)
   for playerName, task in pairs(active_placements) do
+    -- Re-fetch player at the start of each batch; cancel silently if offline.
     local player = minetest.get_player_by_name(playerName)
     if not player then
-      -- Player logged out between ticks: cancel silently.
       active_placements[playerName] = nil
     else
       local result = last_paste_result[playerName]
@@ -189,8 +189,8 @@ minetest.register_globalstep(function(dtime)
           end
         end
 
-        -- 8. Place the node.
-        minetest.set_node(dest_pos, { name = entry.name, param2 = entry.param2 })
+        -- 8. Place the node (fires on_construct, after_place_node, etc.).
+        blueprint_tool.place_node(dest_pos, { name = entry.name, param2 = entry.param2 }, player)
         result.placed = result.placed + 1
 
         ::continue::
