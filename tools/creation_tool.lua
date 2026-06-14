@@ -128,7 +128,7 @@ local function build_main_formspec(playerName, itemstack)
   local y1, y2 = 0.3, 1.05
 
   local function face_group(gx, gy, lbl, minus_name, plus_name)
-    return "label["..gx..","..(gy + 0.2)..";"..lbl.."]"..
+    return "label["..gx..","..(gy + 0.3)..";"..lbl.."]"..
       "button["..(gx+1.2)..","..gy..";"..bw..","..bh..";"..minus_name..";-]"..
       "button["..(gx+1.85)..","..gy..";"..bw..","..bh..";"..plus_name..";+]"
   end
