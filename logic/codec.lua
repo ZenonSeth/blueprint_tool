@@ -49,9 +49,9 @@ function blueprint_tool.codec.import(str)
   if type(bp.nodes) ~= "table" then return nil, "Missing nodes"       end
 
   local s = blueprint_tool.settings
-  if (bp.size.x or 0) > s.max_size_x or
-     (bp.size.y or 0) > s.max_size_y or
-     (bp.size.z or 0) > s.max_size_z then
+  if (bp.size.x or 0) >= s.max_size_x or
+     (bp.size.y or 0) >= s.max_size_y or
+     (bp.size.z or 0) >= s.max_size_z then
     return nil, "Blueprint exceeds server size limits"
   end
 

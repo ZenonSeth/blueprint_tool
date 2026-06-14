@@ -399,8 +399,8 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
       local id = blueprint_tool.storage.store_blueprint(bp)
       local name = sanitize_name(fields.slot_name)
       blueprint_tool.storage.set_player_slot(playerName, slot_idx, { name = name, bp_id = id })
-      notify(playerName, "Captured into slot "..slot_idx.." ("..#bp.nodes.." nodes)")
-      show_main(playerName, itemstack)
+      minetest.close_formspec(playerName, "blueprint_tool:creation_main")
+      notify(playerName, "Captured! " .. #bp.nodes .. " node(s) saved to slot " .. slot_idx)
       return
     end
   end
@@ -431,8 +431,8 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
       local slot_data = blueprint_tool.storage.get_player_slot(playerName, slot_idx) or {}
       blueprint_tool.storage.set_player_slot(playerName, slot_idx, { name = slot_data.name or "", bp_id = id })
       analysis_cache[playerName] = nil
-      notify(playerName, "Captured into slot "..slot_idx.." ("..#bp.nodes.." nodes)")
-      show_main(playerName, itemstack)
+      minetest.close_formspec(playerName, "blueprint_tool:analysis")
+      notify(playerName, "Captured! " .. #bp.nodes .. " node(s) saved to slot " .. slot_idx)
       return
     end
   end

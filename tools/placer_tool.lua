@@ -328,6 +328,36 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
   end
 
   if formname == "blueprint_tool:placer_main" then
+    if fields.paste then
+      local slot_idx  = get_active_slot(itemstack)
+      local slot_data = slot_idx and blueprint_tool.storage.get_player_slot(playerName, slot_idx)
+      local bp        = slot_data and slot_data.bp_id and
+                        blueprint_tool.storage.get_blueprint(slot_data.bp_id)
+      local origin    = blueprint_tool.logic.get_origin(itemstack)
+
+      if not bp or not origin then
+        notify(playerName, "Select a blueprint and set an origin first")
+        return
+      end
+
+      if blueprint_tool.logic.get_paste_task(playerName) then
+        minetest.close_formspec(playerName, "blueprint_tool:placer_main")
+        notify(playerName, "A placement is already in progress. Use /blueprint_cancel to stop it.")
+        return
+      end
+
+      local ok, err = blueprint_tool.logic.start_paste(playerName, bp, origin)
+      if not ok then
+        notify(playerName, err)
+        return
+      end
+
+      blueprint_tool.entity.show_area(playerName, origin, vector.add(origin, bp.size))
+      minetest.close_formspec(playerName, "blueprint_tool:placer_main")
+      notify(playerName, "Starting placement...")
+      return
+    end
+
     if fields.pick_slot then
       show_slot_picker(playerName)
       return
