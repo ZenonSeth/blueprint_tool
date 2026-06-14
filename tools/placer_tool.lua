@@ -101,6 +101,10 @@ local function build_main_formspec(playerName, itemstack)
     and "button[14.3,1.7;2.7,0.6;analyze;Analyze]"
     or  ""
 
+  local preview_btn = (has_bp and origin)
+    and "button[0.2,1.7;2.7,0.6;pa_preview;Preview]"
+    or  ""
+
   return blueprint_tool.fs_header(17.5, 2.8, {x=0.5, y=0.85}, {x=0.5, y=0.5}, "#00000033")..
     "label[0.2,0.5;"..minetest.formspec_escape(slot_label).."]"..
     "button[3.1,0.2;1.3,0.65;pick_slot;Pick Slot]"..
@@ -109,7 +113,8 @@ local function build_main_formspec(playerName, itemstack)
     "label[11.5,0.4;Origin: "..minetest.formspec_escape(origin_str).."]"..
     "label[11.5,0.95;End: "..minetest.formspec_escape(pos2_str).."]"..
     place_btn..
-    analyze_btn
+    analyze_btn..
+    preview_btn
 end
 
 local function build_analyze_formspec(playerName, bp_ana, placement, has_bp, has_origin)
@@ -286,6 +291,9 @@ local function show_analyze(playerName, itemstack)
   local has_bp    = slot_data and slot_data.bp_id
   local bp        = has_bp and blueprint_tool.storage.get_blueprint(slot_data.bp_id)
   local origin    = blueprint_tool.logic.get_origin(itemstack)
+  if bp and not analysis_cache[playerName] then
+    analysis_cache[playerName] = blueprint_tool.logic.analyze_blueprint(bp)
+  end
   local placement
   if bp and origin then
     placement = blueprint_tool.logic.analyze_placement(bp, origin, playerName)
@@ -332,6 +340,21 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
         show_main(playerName, itemstack)
         return
       end
+    end
+
+    if fields.pa_preview then
+      local slot_idx  = get_p_active_slot(itemstack)
+      local slot_data = slot_idx and blueprint_tool.storage.get_player_slot(playerName, slot_idx)
+      local bp        = slot_data and slot_data.bp_id and
+                        blueprint_tool.storage.get_blueprint(slot_data.bp_id)
+      local origin    = blueprint_tool.logic.get_origin(itemstack)
+      if bp and origin then
+        local angle = get_rotation(itemstack)
+        blueprint_tool.entity.hide_area(playerName)
+        blueprint_tool.logic.show_preview(playerName, slot_data.bp_id, bp, origin, angle)
+      end
+      minetest.close_formspec(playerName, "blueprint_tool:placer_main")
+      return
     end
 
     if fields.pa_place then

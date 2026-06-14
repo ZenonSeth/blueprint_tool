@@ -224,12 +224,78 @@ minetest.register_on_leaveplayer(function(objRef)
     local name = objRef:get_player_name()
     active_placements[name] = nil
     last_paste_result[name] = nil
+    exposed_cache[name] = nil
   end
 end)
 
 ----------------------------------------------------------------
 -- /blueprint_cancel: lets players abort a stuck or unwanted placement
 ----------------------------------------------------------------
+
+----------------------------------------------------------------
+-- Preview helpers
+----------------------------------------------------------------
+
+local NEIGHBORS = {
+  vector.new( 1, 0, 0), vector.new(-1, 0, 0),
+  vector.new( 0, 1, 0), vector.new( 0,-1, 0),
+  vector.new( 0, 0, 1), vector.new( 0, 0,-1),
+}
+
+local exposed_cache = {}  -- [playerName] = {bp_id, offsets}
+
+-- Returns a list of offsets (relative to blueprint origin) for non-air nodes
+-- that have at least one air or out-of-bounds neighbor.
+function blueprint_tool.logic.get_exposed_offsets(playerName, bp_id, bp)
+  local cached = exposed_cache[playerName]
+  if cached and cached.bp_id == bp_id then return cached.offsets end
+
+  local solid = {}
+  for _, entry in ipairs(bp.nodes) do
+    if entry.name ~= "air" then
+      solid[minetest.pos_to_string(entry.offset)] = true
+    end
+  end
+
+  local result = {}
+  for _, entry in ipairs(bp.nodes) do
+    if entry.name ~= "air" then
+      for _, dir in ipairs(NEIGHBORS) do
+        if not solid[minetest.pos_to_string(vector.add(entry.offset, dir))] then
+          result[#result + 1] = entry.offset
+          break
+        end
+      end
+    end
+  end
+
+  exposed_cache[playerName] = {bp_id = bp_id, offsets = result}
+  return result
+end
+
+----------------------------------------------------------------
+-- Preview: spawn one particle per non-air node at its world position
+----------------------------------------------------------------
+
+function blueprint_tool.logic.show_preview(playerName, bp_id, bp, origin, angle)
+  angle = (angle or 0) % 360
+  local offsets = blueprint_tool.logic.get_exposed_offsets(playerName, bp_id, bp)
+  for _, raw_offset in ipairs(offsets) do
+    local offset    = blueprint_tool.logic.rotate_offset(raw_offset, angle, bp.size)
+    local world_pos = vector.add(origin, offset)
+    minetest.add_particle({
+      pos            = vector.add(world_pos, vector.new(0.5, 0.5, 0.5)),
+      velocity       = vector.new(0, 0, 0),
+      acceleration   = vector.new(0, 0, 0),
+      expirationtime = 5,
+      size           = 10,
+      vertical       = true,
+      texture        = "blueprint_preview_part.png",
+      playername     = playerName,
+      glow           = 5,
+    })
+  end
+end
 
 minetest.register_chatcommand("blueprint_cancel", {
   description = "Cancel your active blueprint placement",
