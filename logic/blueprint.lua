@@ -54,17 +54,28 @@ function blueprint_tool.logic.set_raw_selection(itemstack, pos1, pos2)
   meta_set_pos(itemstack, "c_pos2", pos2)
 end
 
--- Sets pos1 freely; if pos2 exists, shifts it to preserve the previous dimensions.
+-- Sets pos1; if pos2 exists and the new size fits within limits, only pos1 moves (resize).
+-- If any dimension would exceed limits, shifts the whole volume to preserve existing dimensions.
 -- Returns final pos1, whether pos2 was moved.
 function blueprint_tool.logic.set_pos1(itemstack, pos)
   local old_pos1, old_pos2 = blueprint_tool.logic.get_selection(itemstack)
   meta_set_pos(itemstack, "c_pos1", pos)
   local pos2_moved = false
   if old_pos1 and old_pos2 then
-    local offset = vector.subtract(old_pos2, old_pos1)
-    local new_pos2 = vector.add(pos, offset)
-    meta_set_pos(itemstack, "c_pos2", new_pos2)
-    pos2_moved = true
+    local s = blueprint_tool.settings
+    local limits = { x = s.max_size_x, y = s.max_size_y, z = s.max_size_z }
+    local fits = true
+    for _, axis in ipairs({"x", "y", "z"}) do
+      if math.abs(pos[axis] - old_pos2[axis]) + 1 > limits[axis] then
+        fits = false
+        break
+      end
+    end
+    if not fits then
+      local offset = vector.subtract(old_pos2, old_pos1)
+      meta_set_pos(itemstack, "c_pos2", vector.add(pos, offset))
+      pos2_moved = true
+    end
   end
   return pos, pos2_moved
 end
