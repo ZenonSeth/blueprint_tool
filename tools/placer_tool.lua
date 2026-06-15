@@ -97,7 +97,7 @@ local function build_main_formspec(playerName, itemstack)
     and "button[11.5,1.7;2.7,0.6;pa_place;Place]"
     or  ""
 
-  local analyze_btn = has_bp
+  local analyze_btn = (has_bp and origin)
     and "button[14.3,1.7;2.7,0.6;analyze;Analyze]"
     or  ""
 

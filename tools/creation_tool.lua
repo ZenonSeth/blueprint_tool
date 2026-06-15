@@ -162,8 +162,8 @@ local function build_main_formspec(playerName, itemstack)
     "label[13.3,0.35;Pos 1: "..minetest.formspec_escape(pos1_str).."]"..
     "label[13.3,0.9;Pos 2: "..minetest.formspec_escape(pos2_str).."]"..
     clear_btn..
-    "button[13.3,2.1;1.9,0.6;capture;Capture]"..
-    "button[15.3,2.1;1.9,0.6;analyze;Analyze]"
+    (pos1 and pos2 and "button[13.3,2.1;1.9,0.6;capture;Capture]" or "")..
+    (pos1 and pos2 and "button[15.3,2.1;1.9,0.6;analyze;Analyze]" or "")
 end
 
 local function build_slot_picker_formspec(playerName, page)
