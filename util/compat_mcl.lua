@@ -20,10 +20,9 @@ end
 blueprint_tool.inv_width = (mcl and 9 or 8) + 0.25
 
 blueprint_tool.itemstrings = {
-  steel  = mcl and "mcl_core:iron_ingot" or "default:steel_ingot",
-  wood   = mcl and "mcl_core:wood"     or "default:wood",
-  paper  = mcl and "mcl_core:paper"    or "default:paper",
-  chest  = mcl and "mcl_chests:chest"  or "default:chest",
-  glass  = mcl and "mcl_core:glass"    or "default:glass",
-  cobble = mcl and "mcl_core:cobble"   or "default:cobble",
+  steel    = mcl and "mcl_core:iron_ingot" or "default:steel_ingot",
+  paper    = mcl and "mcl_core:paper"      or "default:paper",
+  glass    = mcl and "mcl_core:glass"      or "default:glass",
+  fragment = mcl and "mesecons:redstone"   or "default:mese_crystal_fragment",
+  diamond  = mcl and "mcl_core:diamond"    or "default:diamond",
 }
