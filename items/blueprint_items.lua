@@ -11,19 +11,16 @@ local function is_admin(playerName)
   return privs.server or privs.blueprint_admin
 end
 
-local function has_creative(playerName)
-  local privs = minetest.get_player_privs(playerName)
-  return privs.creative or privs.give
-end
-
 local function read_ref_meta(itemstack)
   local meta          = itemstack:get_meta()
   local bp_id         = tonumber(meta:get_string("bp_id"))
   local captured_at   = tonumber(meta:get_string("captured_at"))
   local oc            = meta:get_string("oc")
   local disallow_copy = meta:get_string("disallow_copy") == "true" or nil
+  local name          = meta:get_string("name")
   if oc == "" then oc = nil end
-  return bp_id, captured_at, oc, disallow_copy
+  if name == "" then name = nil end
+  return bp_id, captured_at, oc, disallow_copy, name
 end
 
 ----------------------------------------------------------------
@@ -31,7 +28,7 @@ end
 ----------------------------------------------------------------
 
 local function show_ref_formspec(playerName, itemstack)
-  local bp_id, captured_at, oc = read_ref_meta(itemstack)
+  local bp_id, captured_at, oc, _, name = read_ref_meta(itemstack)
   local valid = blueprint_tool.logic.check_blueprint_ref_valid(bp_id, captured_at)
 
   local fs
@@ -45,18 +42,19 @@ local function show_ref_formspec(playerName, itemstack)
       "label[0.4,1.15;" .. minetest.formspec_escape(reason) .. "]"
   else
     local bp      = blueprint_tool.storage.get_blueprint(bp_id)
-    local W2, H2  = 8.0, 4.8
+    local W2, H2  = 8.0, 5.35
     fs = blueprint_tool.fs_header(W2, H2, {x=0.5, y=0.5}, {x=0.5, y=0.5})
     local date    = os.date("%Y-%m-%d", bp.captured_at)
     local creator = minetest.colorize(blueprint_tool.COLOR_ACCENT, oc or "unknown")
     local sz      = bp.size
     fs = fs ..
       "label[0.4,0.4;Blueprint Reference]" ..
-      "label[0.4,1.0;Originally by: "  .. creator .. "]" ..
-      "label[0.4,1.55;Captured: "      .. minetest.formspec_escape(date) .. "]" ..
-      "label[0.4,2.1;Size: "           .. sz.x .. " x " .. sz.y .. " x " .. sz.z .. "]" ..
-      "label[0.4,2.65;Nodes: "         .. blueprint_tool.format_count(#bp.nodes) .. "]" ..
-      "button[" .. (W2 / 2 - 1.5) .. ",3.6;3.0,0.75;import;Import Blueprint]"
+      "label[0.4,1.0;Name: "           .. minetest.formspec_escape(name or "(unnamed)") .. "]" ..
+      "label[0.4,1.55;Originally by: "  .. creator .. "]" ..
+      "label[0.4,2.1;Captured: "      .. minetest.formspec_escape(date) .. "]" ..
+      "label[0.4,2.65;Size: "           .. sz.x .. " x " .. sz.y .. " x " .. sz.z .. "]" ..
+      "label[0.4,3.2;Nodes: "         .. blueprint_tool.format_count(#bp.nodes) .. "]" ..
+      "button[" .. (W2 / 2 - 1.5) .. ",4.15;3.0,0.75;import;Import Blueprint]"
   end
 
   minetest.show_formspec(playerName, "blueprint_tool:blueprint_ref_view", fs)
@@ -86,7 +84,11 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
     return
   end
 
-  blueprint_tool.show_popup(playerName, "Blueprint imported to slot " .. slot .. ".")
+  itemstack:take_item()
+  player:set_wielded_item(itemstack)
+
+  minetest.close_formspec(playerName, "blueprint_tool:blueprint_ref_view")
+  blueprint_tool.show_popup(playerName, "Blueprint imported into slot " .. slot .. ".")
 end)
 
 ----------------------------------------------------------------
@@ -140,7 +142,7 @@ local function build_create_ref_formspec(callerName)
 
   local fs = blueprint_tool.fs_header(W, H, {x=0.5, y=0.5}, {x=0.5, y=0.5})
 
-  local header = "Create Reference  —  " ..
+  local header = "Create Reference: " ..
     minetest.colorize(blueprint_tool.COLOR_ACCENT, target)
   fs = fs .. "label[0.3,0.35;" .. minetest.formspec_escape(header) .. "]"
 
@@ -227,7 +229,10 @@ local function build_create_ref_formspec(callerName)
 
   -- Disallow copy checkbox + error label (always at bottom)
   local dc_val = state.disallow_copy and "true" or "false"
-  fs = fs .. "checkbox[0.3," .. ay .. ";disallow_copy;Disallow further copying;" .. dc_val .. "]"
+  fs = fs .. "checkbox[5.3,0.4;disallow_copy;Disallow further copying on created refs;" .. dc_val .. "]"
+  fs = fs .. "tooltip[disallow_copy;" ..
+    minetest.formspec_escape("When checked, references you create won't be copy-able\nby people who import them in their blueprint library") ..
+    "]"
 
   if state.error then
     fs = fs .. "label[0.3," .. (ay + 0.55) .. ";" ..
@@ -331,6 +336,7 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
       ref_meta:set_string("captured_at", tostring(bp.captured_at))
       local oc = bp.oc or target
       ref_meta:set_string("oc", oc)
+      ref_meta:set_string("name", slot_data.name or "")
       if state.disallow_copy then
         ref_meta:set_string("disallow_copy", "true")
       end
@@ -345,16 +351,14 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
         return
       end
 
-      -- Take one blank blueprint unless creative/give
-      if not has_creative(callerName) then
-        local taken = inv:remove_item("main", ItemStack("blueprint_tool:blueprint"))
-        if taken:is_empty() then
-          -- No blank available; undo the ref we just gave
-          inv:remove_item("main", ref)
-          state.error = "You need a blank blueprint."
-          minetest.show_formspec(callerName, "blueprint_tool:create_ref", build_create_ref_formspec(callerName))
-          return
-        end
+      -- Take one blank blueprint
+      local taken = inv:remove_item("main", ItemStack("blueprint_tool:blueprint"))
+      if taken:is_empty() then
+        -- No blank available; undo the ref we just gave
+        inv:remove_item("main", ref)
+        state.error = "You need a blank blueprint."
+        minetest.show_formspec(callerName, "blueprint_tool:create_ref", build_create_ref_formspec(callerName))
+        return
       end
 
       create_ref_state[callerName] = nil
@@ -375,9 +379,17 @@ end)
 ----------------------------------------------------------------
 
 minetest.register_craftitem("blueprint_tool:blueprint", {
-  description = "Blueprint",
+  description = minetest.colorize("#87CEEB", "Blueprint") ..
+    "\nUse to create a reference to one of your saved blueprints",
   inventory_image = "blueprint_blueprint.png",
   on_place = function(itemstack, user, _pointed_thing)
+    if not user or not user:is_player() then return itemstack end
+    local playerName = user:get_player_name()
+    if not blueprint_tool.player_has_access(playerName) then return itemstack end
+    show_create_ref(playerName)
+    return itemstack
+  end,
+  on_secondary_use = function(itemstack, user, _pointed_thing)
     if not user or not user:is_player() then return itemstack end
     local playerName = user:get_player_name()
     if not blueprint_tool.player_has_access(playerName) then return itemstack end
@@ -387,10 +399,16 @@ minetest.register_craftitem("blueprint_tool:blueprint", {
 })
 
 minetest.register_craftitem("blueprint_tool:blueprint_ref", {
-  description = "Blueprint Reference",
+  description = minetest.colorize("#87CEEB", "Blueprint Reference") ..
+    "\nUse to import the linked blueprint into your saved slots",
   inventory_image = "blueprint_blueprint_ref.png",
   groups = { not_in_creative_inventory = 1 },
   on_place = function(itemstack, user, _pointed_thing)
+    if not user or not user:is_player() then return itemstack end
+    show_ref_formspec(user:get_player_name(), itemstack)
+    return itemstack
+  end,
+  on_secondary_use = function(itemstack, user, _pointed_thing)
     if not user or not user:is_player() then return itemstack end
     show_ref_formspec(user:get_player_name(), itemstack)
     return itemstack
