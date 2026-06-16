@@ -478,7 +478,8 @@ end)
 ----------------------------------------------------------------
 
 minetest.register_tool("blueprint_tool:placer_tool", {
-  description = S("Blueprint Placer Tool\nPunch to set origin for placing\nRight-click to select a blueprint"),
+  description = minetest.colorize("#55FF55", S("Blueprint Placer Tool")) ..
+    S("\nPunch to set origin for placing\nRight-click: Menu\nSneak+Right-click to switch mode"),
   short_description = S("Blueprint Placer Tool"),
   inventory_image = "placer_tool.png",
   wield_image = "placer_tool.png",

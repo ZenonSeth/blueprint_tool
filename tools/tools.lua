@@ -17,6 +17,7 @@ function blueprint_tool.tools.swap_tool(player, itemstack)
     new_meta:set_string(k, v)
   end
   player:set_wielded_item(new_item)
+  blueprint_tool.entity.hide_area(player:get_player_name())
   return true
 end
 

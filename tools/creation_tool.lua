@@ -441,7 +441,8 @@ end)
 ----------------------------------------------------------------
 
 minetest.register_tool("blueprint_tool:creation_tool", {
-  description = S("Blueprint Creation Tool\nPunch: Set Pos 1 (origin)\nSneak+Punch: Set Pos 2\nRight-click: Menu"),
+  description = minetest.colorize("#FF8855", S("Blueprint Creation Tool")) ..
+    S("\nPunch: Set Pos 1 (origin)\nSneak+Punch: Set Pos 2\nRight-click: Menu\nSneak+Right-click to switch mode"),
   short_description = S("Blueprint Creation Tool"),
   inventory_image = "creation_tool.png",
   wield_image = "creation_tool.png",
