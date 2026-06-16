@@ -157,6 +157,7 @@ local function build_main_formspec(playerName, itemstack)
     "button[3.1,0.2;1.5,0.65;pick_slot;Pick Slot]"..
     "field[0.2,0.85;2.8,0.65;slot_name;;"..minetest.formspec_escape(current_name).."]"..
     "button[3.1,0.85;1.5,0.65;rename;Rename]"..
+    "button[16.1,0.1;1.2,0.6;help;"..minetest.colorize(blueprint_tool.COLOR_WARN, "Help").."]"..
     override_line..
     face_btns..
     "label[13.3,0.35;Pos 1: "..minetest.formspec_escape(pos1_str).."]"..
@@ -295,6 +296,11 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
   if itemstack:get_name() ~= "blueprint_tool:creation_tool" then return end
 
   if formname == "blueprint_tool:creation_main" then
+    if fields.help then
+      blueprint_tool.show_help(playerName)
+      return
+    end
+
     if fields.pick_slot then
       show_slot_picker(playerName)
       return

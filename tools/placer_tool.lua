@@ -108,6 +108,7 @@ local function build_main_formspec(playerName, itemstack)
   return blueprint_tool.fs_header(17.5, 2.8, {x=0.5, y=0.85}, {x=0.5, y=0.5}, "#00000033")..
     "label[0.2,0.5;"..minetest.formspec_escape(slot_label).."]"..
     "button[3.1,0.2;1.5,0.65;pick_slot;Pick Slot]"..
+    "button[16.1,0.1;1.2,0.6;help;"..minetest.colorize(blueprint_tool.COLOR_WARN, "Help").."]"..
     axis_btns..
     rot_btns..
     "label[11.5,0.4;Origin: "..minetest.formspec_escape(origin_str).."]"..
@@ -323,6 +324,11 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
   if itemstack:get_name() ~= "blueprint_tool:placer_tool" then return end
 
   if formname == "blueprint_tool:placer_main" then
+    if fields.help then
+      blueprint_tool.show_help(playerName)
+      return
+    end
+
     if fields.pick_slot then
       show_slot_picker(playerName)
       return
