@@ -21,6 +21,11 @@ local VIRTUAL_TOOL = {
   },
 }
 
+local ROTATIONAL_PARAM2 = {
+  facedir = true, ["4dir"] = true, wallmounted = true, degrotate = true,
+  colorfacedir = true, color4dir = true, colorwallmounted = true,
+}
+
 local DIG_COOLDOWN_DEFAULT = 0.5
 
 local function get_dig_cooldown(node_name)
@@ -190,8 +195,14 @@ minetest.register_globalstep(function(dtime)
           dest_node = minetest.get_node(dest_pos)
         end
 
-        -- 4. Already correct: nothing to do, don't consume an item.
+        -- 4. Already correct: fix param2 if needed (rotation), no dig or item consumed.
         if dest_node.name == entry.name then
+          if dest_node.param2 ~= entry.param2 then
+            local pt2 = (minetest.registered_nodes[entry.name] or {}).paramtype2 or ""
+            if ROTATIONAL_PARAM2[pt2] then
+              minetest.swap_node(dest_pos, { name = entry.name, param2 = entry.param2 })
+            end
+          end
           goto continue
         end
 
