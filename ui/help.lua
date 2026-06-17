@@ -19,7 +19,9 @@ Right-click opens the menu, where you can pick which slot to capture into, renam
 
 Right-click opens the menu, where Pick Slot selects which saved blueprint to place. Punch a node to set the placement origin. Once a blueprint and an origin are both set, +/- buttons let you nudge the origin along X/Y/Z, and rotation buttons (0/90/180/270 degrees) let you orient the blueprint before placing.
 
-Preview shows the blueprint's outline with particles at the target location without placing anything, so you can check positioning first. Analyze reports what placing would actually do at that location, e.g. nodes you have available to place vs. ones you're missing. Place commits the blueprint to the world, consuming matching nodes from your inventory as it builds (unless you have the give or creative_mode privilege).]] },
+Preview shows the blueprint's outline with particles at the target location without placing anything, so you can check positioning first. Analyze reports what placing would actually do at that location, e.g. nodes you have available to place vs. ones you're missing. Place commits the blueprint to the world, consuming matching nodes from your inventory as it builds (unless you have the give or creative_mode privilege).
+
+Placement speed depends on what's already at the target location. Placing into empty space is very fast, but if existing nodes need to be dug out first, the placer slows down to account for each node's dig time - harder materials cause a longer pause before placement resumes. Nodes that can't be dug at all are skipped entirely.]] },
   { title = "Blueprint Item", text = [[A blank, craftable item used to package one of your saved blueprints for sharing.
 
 Right-click (or use) it to open the Create Reference menu, which lists your saved blueprint slots. Pick one and hit Create Ref to produce a Blueprint Reference item linked to that blueprint, consuming the blank Blueprint item in the process (this always happens, regardless of give/creative privileges).

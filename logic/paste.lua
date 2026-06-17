@@ -6,6 +6,34 @@ local active_placements = {}
 local last_paste_result = {}
 
 ----------------------------------------------------------------
+-- Virtual tool for estimating dig times
+----------------------------------------------------------------
+
+local VIRTUAL_TOOL = {
+  full_punch_interval = 1.0,
+  max_drop_level = 3,
+  groupcaps = {
+    cracky  = { maxlevel = 3, uses = 0, times = { [1] = 1.00, [2] = 0.50, [3] = 0.25 } },
+    crumbly = { maxlevel = 3, uses = 0, times = { [1] = 0.75, [2] = 0.45, [3] = 0.25 } },
+    choppy  = { maxlevel = 3, uses = 0, times = { [1] = 1.10, [2] = 0.70, [3] = 0.40 } },
+    snappy  = { maxlevel = 3, uses = 0, times = { [1] = 0.25, [2] = 0.15, [3] = 0.10 } },
+    oddly_breakable_by_hand = { maxlevel = 3, uses = 0, times = { [1] = 1.50, [2] = 0.75, [3] = 0.25 } },
+  },
+}
+
+local DIG_COOLDOWN_DEFAULT = 0.5
+
+local function get_dig_cooldown(node_name)
+  local def = minetest.registered_nodes[node_name]
+  if not def or not def.groups then return DIG_COOLDOWN_DEFAULT end
+  local params = minetest.get_dig_params(def.groups, VIRTUAL_TOOL)
+  if params.diggable and params.time > 0 then
+    return params.time
+  end
+  return DIG_COOLDOWN_DEFAULT
+end
+
+----------------------------------------------------------------
 -- nodes-per-tick calculation
 -- Goal: place whole horizontal layers (x*z footprint) per tick so
 -- the build grows cleanly bottom-to-top.
@@ -128,6 +156,12 @@ minetest.register_globalstep(function(dtime)
     if not player then
       active_placements[playerName] = nil
     else
+      -- Dig cooldown: wait out remaining time before resuming placement.
+      if task.dig_cooldown and task.dig_cooldown > 0 then
+        task.dig_cooldown = task.dig_cooldown - dtime
+        goto next_player
+      end
+
       local result = last_paste_result[playerName]
       local count  = 0
 
@@ -167,6 +201,11 @@ minetest.register_globalstep(function(dtime)
           if not blueprint_tool.logic.is_diggable(dest_def) then
             goto continue
           end
+          local dig_params = minetest.get_dig_params(dest_def.groups or {}, VIRTUAL_TOOL)
+          if not dig_params.diggable then
+            result.cannot_dig[dest_node.name] = (result.cannot_dig[dest_node.name] or 0) + 1
+            goto continue
+          end
           if dest_def.can_dig and not dest_def.can_dig(dest_pos, player) then
             result.cannot_dig[dest_node.name] = (result.cannot_dig[dest_node.name] or 0) + 1
             goto continue
@@ -180,7 +219,9 @@ minetest.register_globalstep(function(dtime)
         end
 
         -- 7. Dig existing solid node; creative/give players get no drops.
+        local did_dig = false
         if dest_def and not dest_def.buildable_to then
+          did_dig = true
           if has_bypass(player) then
             minetest.remove_node(dest_pos)
           else
@@ -203,6 +244,12 @@ minetest.register_globalstep(function(dtime)
         minetest.swap_node(dest_pos, { name = entry.name, param2 = entry.param2 })
         result.placed = result.placed + 1
 
+        -- After digging+placing, enter cooldown based on the dug node's dig time.
+        if did_dig then
+          task.dig_cooldown = get_dig_cooldown(dest_node.name)
+          break
+        end
+
         ::continue::
       end
 
@@ -212,6 +259,7 @@ minetest.register_globalstep(function(dtime)
           "Placement finished! " .. result.placed .. " node(s) placed.")
       end
     end
+    ::next_player::
   end
 end)
 
