@@ -165,17 +165,17 @@ function blueprint_tool.logic.analyze_placement(bp, origin, playerName)
     end
 
     -- 4. Solid node: diggable, blocked by can_dig, or fully undiggable.
-    if is_diggable(dest_def) then
+    if not blueprint_tool.settings.allow_placer_dig then
+      needs_digging = needs_digging + 1
+    elseif is_diggable(dest_def) then
       if dest_def.can_dig and not dest_def.can_dig(dest_pos, player) then
         cannot_dig_counts[dest_node.name] = (cannot_dig_counts[dest_node.name] or 0) + 1
-        -- won't attempt to place, so no inventory needed
       else
         needs_digging = needs_digging + 1
         needed[entry.name] = (needed[entry.name] or 0) + 1
       end
     else
       undiggable = undiggable + 1
-      -- won't attempt to place, so no inventory needed
     end
 
     ::continue::

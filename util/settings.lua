@@ -25,3 +25,4 @@ blueprint_tool.settings.even_more_slots = get_int("even_more_slots", 500, 1, 100
 -- When true (default), all players may use blueprint tools without needing basic_blueprints priv.
 -- Set to false to require explicit priv grants.
 blueprint_tool.settings.open_access     = get_bool("open_access", true)
+blueprint_tool.settings.allow_placer_dig = get_bool("allow_placer_dig", true)

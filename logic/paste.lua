@@ -198,6 +198,10 @@ minetest.register_globalstep(function(dtime)
         -- 5. Solid node checks: skip without consuming an item if we can't clear the way.
         local dest_def = minetest.registered_nodes[dest_node.name]
         if dest_def and not dest_def.buildable_to then
+          if not blueprint_tool.settings.allow_placer_dig then
+            result.needs_digging = (result.needs_digging or 0) + 1
+            goto continue
+          end
           if not blueprint_tool.logic.is_diggable(dest_def) then
             goto continue
           end
