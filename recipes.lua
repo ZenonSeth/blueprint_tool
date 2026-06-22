@@ -1,3 +1,5 @@
+if not blueprint_tool.itemstrings._exist then return end
+
 minetest.register_craft({
   output = "blueprint_tool:blueprint 3",
   recipe = {

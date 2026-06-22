@@ -17,6 +17,12 @@ Each player gets a set of persistent blueprint slots (count depends on privilege
 
 ---
 
+## Compatibility
+
+The mod works with any game. Crafting recipes are provided for games that use `default` (Minetest Game) or `mcl_core` (Mineclonia, VoxeLibre). For other games, the tools can still be obtained via `/give` or creative inventory.
+
+---
+
 ## Server Configuration
 
 | Setting | Default | Description |

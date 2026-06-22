@@ -1,7 +1,5 @@
 local mcl = minetest.get_modpath("mcl_core")
 
-blueprint_tool.sound_mod = mcl and mcl_sounds or default
-
 -- Returns a player's inventory formspec list elements with correct layout for the current game
 function blueprint_tool.player_inv_formspec(x, y)
   if mcl then
@@ -19,7 +17,10 @@ blueprint_tool.inv_size = function(w, h)
 end
 blueprint_tool.inv_width = (mcl and 9 or 8) + 0.25
 
+local dflt = minetest.get_modpath("default")
+
 blueprint_tool.itemstrings = {
+  _exist   = (mcl or dflt) and true or false,
   steel    = mcl and "mcl_core:iron_ingot" or "default:steel_ingot",
   paper    = mcl and "mcl_core:paper"      or "default:paper",
   glass    = mcl and "mcl_core:glass"      or "default:glass",
