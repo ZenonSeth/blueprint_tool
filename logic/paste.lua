@@ -101,7 +101,7 @@ end
 
 -- Starts a paste task. Returns true, or nil + error string.
 -- angle: Y-axis rotation in degrees (0/90/180/270), default 0.
-function blueprint_tool.logic.start_paste(playerName, bp, origin, angle)
+function blueprint_tool.logic.start_paste(playerName, bp, origin, angle, dig_nodes)
   if active_placements[playerName] then
     return nil, "A placement is already in progress"
   end
@@ -118,11 +118,12 @@ function blueprint_tool.logic.start_paste(playerName, bp, origin, angle)
   table.sort(nodes, function(a, b) return a.offset.y < b.offset.y end)
 
   active_placements[playerName] = {
-    bp     = bp,
-    origin = origin,
-    nodes  = nodes,
-    index  = 1,
-    npt    = compute_nodes_per_tick(bp),
+    bp        = bp,
+    origin    = origin,
+    nodes     = nodes,
+    index     = 1,
+    npt       = compute_nodes_per_tick(bp),
+    dig_nodes = blueprint_tool.settings.allow_placer_dig and dig_nodes,
   }
 
   last_paste_result[playerName] = {
@@ -209,7 +210,7 @@ minetest.register_globalstep(function(dtime)
         -- 5. Solid node checks: skip without consuming an item if we can't clear the way.
         local dest_def = minetest.registered_nodes[dest_node.name]
         if dest_def and not dest_def.buildable_to then
-          if not blueprint_tool.settings.allow_placer_dig then
+          if not task.dig_nodes then
             result.needs_digging = (result.needs_digging or 0) + 1
             goto continue
           end

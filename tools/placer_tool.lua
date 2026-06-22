@@ -25,6 +25,14 @@ local function set_rotation(itemstack, angle)
   itemstack:get_meta():set_int("p_rotation", angle % 360)
 end
 
+local function get_dig_enabled(itemstack)
+  return itemstack:get_meta():get_int("p_dig_disabled") ~= 1
+end
+
+local function set_dig_enabled(itemstack, enabled)
+  itemstack:get_meta():set_int("p_dig_disabled", enabled and 0 or 1)
+end
+
 ----------------------------------------------------------------
 -- Filled-slot helpers
 ----------------------------------------------------------------
@@ -93,6 +101,17 @@ local function build_main_formspec(playerName, itemstack)
     "button[8.8,1.1;1.2,0.6;rot_180;" ..rot_label(180).."]"..
     "button[10.1,1.1;1.2,0.6;rot_270;"..rot_label(270).."]"
 
+  local dig_btn = ""
+  if blueprint_tool.settings.allow_placer_dig and has_bp and origin then
+    local dig_on = get_dig_enabled(itemstack)
+    local dig_label = dig_on and "Dig Nodes: On" or "Dig Nodes: Off"
+    local dig_tip = dig_on
+      and "Nodes in the way of the blueprint will be dug up"
+      or  "Nodes in the way of the blueprint will be skipped over"
+    dig_btn = "button[3.1,1.7;2.7,0.6;toggle_dig;"..dig_label.."]"..
+      "tooltip[toggle_dig;"..minetest.formspec_escape(dig_tip).."]"
+  end
+
   local place_btn = (has_bp and origin)
     and "button[11.5,1.7;2.7,0.6;pa_place;Place]"
     or  ""
@@ -113,6 +132,7 @@ local function build_main_formspec(playerName, itemstack)
     rot_btns..
     "label[11.5,0.4;Origin: "..minetest.formspec_escape(origin_str).."]"..
     "label[11.5,0.95;End: "..minetest.formspec_escape(pos2_str).."]"..
+    dig_btn..
     place_btn..
     analyze_btn..
     preview_btn
@@ -355,6 +375,13 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
       end
     end
 
+    if fields.toggle_dig then
+      set_dig_enabled(itemstack, not get_dig_enabled(itemstack))
+      player:set_wielded_item(itemstack)
+      show_main(playerName, itemstack)
+      return
+    end
+
     if fields.pa_preview then
       local slot_idx  = get_p_active_slot(itemstack)
       local slot_data = slot_idx and blueprint_tool.storage.get_player_slot(playerName, slot_idx)
@@ -389,7 +416,8 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
       end
 
       local angle = get_rotation(itemstack)
-      local ok, err = blueprint_tool.logic.start_paste(playerName, bp, origin, angle)
+      local dig_nodes = get_dig_enabled(itemstack)
+      local ok, err = blueprint_tool.logic.start_paste(playerName, bp, origin, angle, dig_nodes)
       if not ok then
         notify(playerName, err)
         return
