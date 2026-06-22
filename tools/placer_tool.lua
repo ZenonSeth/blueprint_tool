@@ -323,6 +323,12 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
   local itemstack  = player:get_wielded_item()
   if itemstack:get_name() ~= "blueprint_tool:placer_tool" then return end
 
+  if not blueprint_tool.player_has_access(playerName) then
+    minetest.close_formspec(playerName, formname)
+    notify(playerName, "You don't have permission to use blueprint tools")
+    return
+  end
+
   if formname == "blueprint_tool:placer_main" then
     if fields.help then
       blueprint_tool.show_help(playerName)
@@ -538,11 +544,16 @@ minetest.register_tool("blueprint_tool:placer_tool", {
 
   on_secondary_use = function(itemstack, user, pointed_thing)
     if not user or not user:is_player() then return end
+    local playerName = user:get_player_name()
+    if not blueprint_tool.player_has_access(playerName) then
+      notify(playerName, "You don't have permission to use blueprint tools")
+      return itemstack
+    end
     if user:get_player_control().sneak then
       blueprint_tool.tools.swap_tool(user, itemstack)
       return
     end
-    show_main(user:get_player_name(), itemstack)
+    show_main(playerName, itemstack)
   end,
 })
 

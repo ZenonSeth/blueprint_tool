@@ -279,6 +279,18 @@ minetest.register_globalstep(function(dtime)
 end)
 
 ----------------------------------------------------------------
+-- Preview helpers
+----------------------------------------------------------------
+
+local NEIGHBORS = {
+  vector.new( 1, 0, 0), vector.new(-1, 0, 0),
+  vector.new( 0, 1, 0), vector.new( 0,-1, 0),
+  vector.new( 0, 0, 1), vector.new( 0, 0,-1),
+}
+
+local exposed_cache = {}  -- [playerName] = {bp_id, offsets}
+
+----------------------------------------------------------------
 -- Cleanup on logout: discard task and result (player can re-place at same origin)
 ----------------------------------------------------------------
 
@@ -294,18 +306,6 @@ end)
 ----------------------------------------------------------------
 -- /blueprint_cancel: lets players abort a stuck or unwanted placement
 ----------------------------------------------------------------
-
-----------------------------------------------------------------
--- Preview helpers
-----------------------------------------------------------------
-
-local NEIGHBORS = {
-  vector.new( 1, 0, 0), vector.new(-1, 0, 0),
-  vector.new( 0, 1, 0), vector.new( 0,-1, 0),
-  vector.new( 0, 0, 1), vector.new( 0, 0,-1),
-}
-
-local exposed_cache = {}  -- [playerName] = {bp_id, offsets}
 
 -- Returns a list of offsets (relative to blueprint origin) for non-air nodes
 -- that have at least one air or out-of-bounds neighbor.
