@@ -1,6 +1,6 @@
 blueprint_tool.VERSION = {
   major = 0,
-  minor = 1,
+  minor = 5,
   patch = 0,
 }
 
