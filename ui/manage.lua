@@ -2,7 +2,8 @@ local SLOTS_PER_PAGE   = 8
 local PLAYERS_PER_PAGE = 5
 local W                = 10.5
 
-local manage_state = {}  -- [callerName] = {target, page, player_page}
+local manage_state   = {}  -- [callerName] = {target, page, player_page}
+local confirm_delete = {}  -- [callerName] = slot index pending confirmation
 
 local function is_admin(playerName)
   local privs = minetest.get_player_privs(playerName)
@@ -84,7 +85,10 @@ local function build_formspec(callerName)
       "button["..(W - 3.8)..",".. (y + 0.1) ..";0.7,0.7;down_"..entry.index..";v]"..
       "tooltip[down_"..entry.index..";Move down]"..
 
-      "button["..(W - 2.8)..",".. (y + 0.1) ..";2.5,0.7;del_"..entry.index..";Delete]"..
+      (confirm_delete[callerName] == entry.index
+        and "button["..(W - 2.8)..",".. (y + 0.1) ..";2.5,0.7;del_"..entry.index..";"..
+            minetest.colorize(blueprint_tool.COLOR_WARN, "Confirm Del").."]"
+        or  "button["..(W - 2.8)..",".. (y + 0.1) ..";2.5,0.7;del_"..entry.index..";Delete]")..
       "box[0.3,"..(y + row_h - 0.1)..";"..(W - 0.6)..",".. "0.01;#999999]"
     y = y + row_h
   end
@@ -170,8 +174,15 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 
   if fields.quit then
     manage_state[callerName] = nil
+    confirm_delete[callerName] = nil
     return
   end
+
+  local has_del = false
+  for k in pairs(fields) do
+    if k:match("^del_") then has_del = true; break end
+  end
+  if not has_del then confirm_delete[callerName] = nil end
 
   if fields.prev_page then
     state.page = state.page - 1
@@ -242,7 +253,7 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
     end
   end
 
-  -- Delete buttons
+  -- Delete buttons (two-click: first click sets confirm, second click deletes)
   for k in pairs(fields) do
     local idx = tonumber(k:match("^del_(%d+)$"))
     if idx then
@@ -251,11 +262,16 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
         blueprint_tool.show_popup(callerName, "Permission denied")
         return
       end
-      local slot = blueprint_tool.storage.get_player_slot(target, idx)
-      if slot and slot.bp_id then
-        blueprint_tool.storage.delete_blueprint(slot.bp_id)
+      if confirm_delete[callerName] == idx then
+        confirm_delete[callerName] = nil
+        local slot = blueprint_tool.storage.get_player_slot(target, idx)
+        if slot and slot.bp_id then
+          blueprint_tool.storage.delete_blueprint(slot.bp_id)
+        end
+        blueprint_tool.storage.clear_player_slot(target, idx)
+      else
+        confirm_delete[callerName] = idx
       end
-      blueprint_tool.storage.clear_player_slot(target, idx)
       minetest.show_formspec(callerName, "blueprint_tool:manage", build_formspec(callerName))
       return
     end
@@ -264,7 +280,9 @@ end)
 
 minetest.register_on_leaveplayer(function(objRef)
   if objRef:is_player() then
-    manage_state[objRef:get_player_name()] = nil
+    local pname = objRef:get_player_name()
+    manage_state[pname] = nil
+    confirm_delete[pname] = nil
   end
 end)
 
