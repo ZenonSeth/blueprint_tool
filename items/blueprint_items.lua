@@ -28,7 +28,7 @@ end
 ----------------------------------------------------------------
 
 local function show_ref_formspec(playerName, itemstack)
-  local bp_id, captured_at, oc, _, name = read_ref_meta(itemstack)
+  local bp_id, captured_at, oc, disallow_copy, name = read_ref_meta(itemstack)
   local valid = blueprint_tool.logic.check_blueprint_ref_valid(bp_id, captured_at)
 
   local fs
@@ -42,11 +42,15 @@ local function show_ref_formspec(playerName, itemstack)
       "label[0.4,1.15;" .. minetest.formspec_escape(reason) .. "]"
   else
     local bp      = blueprint_tool.storage.get_blueprint(bp_id)
-    local W2, H2  = 8.0, 5.35
+    local copy_h  = disallow_copy and 0.55 or 0.55
+    local W2, H2  = 8.5, 5.35 + copy_h
     fs = blueprint_tool.fs_header(W2, H2, {x=0.5, y=0.5}, {x=0.5, y=0.5})
     local date    = os.date("%Y-%m-%d", bp.captured_at)
     local creator = minetest.colorize(blueprint_tool.COLOR_ACCENT, oc or "unknown")
     local sz      = bp.size
+    local copy_label = disallow_copy
+      and minetest.colorize(blueprint_tool.COLOR_WARN, "Once imported, you cannot create copies of this blueprint")
+      or "Once imported, you can create copies of this blueprint"
     fs = fs ..
       "label[0.4,0.4;Blueprint Reference]" ..
       "label[0.4,1.0;Name: "           .. minetest.formspec_escape(name or "(unnamed)") .. "]" ..
@@ -54,7 +58,8 @@ local function show_ref_formspec(playerName, itemstack)
       "label[0.4,2.1;Captured: "      .. minetest.formspec_escape(date) .. "]" ..
       "label[0.4,2.65;Size: "           .. sz.x .. " x " .. sz.y .. " x " .. sz.z .. "]" ..
       "label[0.4,3.2;Nodes: "         .. blueprint_tool.format_count(#bp.nodes) .. "]" ..
-      "button[" .. (W2 / 2 - 1.5) .. ",4.15;3.0,0.75;import;Import Blueprint]"
+      "label[0.4,3.75;" .. copy_label .. "]" ..
+      "button[" .. (W2 / 2 - 1.5) .. ",4.7;3.0,0.75;import;Import Blueprint]"
   end
 
   minetest.show_formspec(playerName, "blueprint_tool:blueprint_ref_view", fs)
@@ -77,8 +82,8 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
     return
   end
 
-  local bp_id, captured_at, oc, disallow_copy = read_ref_meta(itemstack)
-  local slot, err = blueprint_tool.logic.import_blueprint_ref(bp_id, captured_at, oc, disallow_copy, playerName)
+  local bp_id, captured_at, oc, disallow_copy, name = read_ref_meta(itemstack)
+  local slot, err = blueprint_tool.logic.import_blueprint_ref(bp_id, captured_at, oc, disallow_copy, playerName, name)
   if not slot then
     blueprint_tool.show_popup(playerName, err)
     return
@@ -97,13 +102,25 @@ end)
 
 local create_ref_state = {}  -- [playerName] = { target, page, player_page, disallow_copy }
 
+local function get_disallow_copy_pref(playerName)
+  local player = minetest.get_player_by_name(playerName)
+  if not player then return true end
+  return player:get_meta():get_int("blueprint_disallow_copy") == 0
+end
+
+local function set_disallow_copy_pref(playerName, value)
+  local player = minetest.get_player_by_name(playerName)
+  if not player then return end
+  player:get_meta():set_int("blueprint_disallow_copy", value and 0 or 1)
+end
+
 local function get_cr_state(playerName)
   if not create_ref_state[playerName] then
     create_ref_state[playerName] = {
       target        = playerName,
       page          = 1,
       player_page   = 1,
-      disallow_copy = false,
+      disallow_copy = get_disallow_copy_pref(playerName),
       error         = nil,
     }
   end
@@ -128,7 +145,7 @@ local function build_create_ref_formspec(callerName)
   state.page = blueprint_tool.clamp(state.page, 1, total_pages)
 
   local slots_y = 1.0
-  local row_h   = 0.72
+  local row_h   = 1.1
   local nav_y   = slots_y + SLOTS_PER_PAGE * row_h + 0.1
 
   local all_players     = admin and blueprint_tool.storage.get_players_with_blueprints() or nil
@@ -138,7 +155,7 @@ local function build_create_ref_formspec(callerName)
   end
 
   local error_h = state.error and 0.55 or 0
-  local H = nav_y + 0.65 + 0.3 + admin_section_h + 0.8 + error_h + 0.4
+  local H = nav_y + 0.65 + 0.3 + admin_section_h + 0.8 + error_h + 0.55 + 0.4
 
   local fs = blueprint_tool.fs_header(W, H, {x=0.5, y=0.5}, {x=0.5, y=0.5})
 
@@ -158,16 +175,20 @@ local function build_create_ref_formspec(callerName)
     local count = bp and #bp.nodes or 0
     local restricted = entry.slot.disallow_copy
 
-    local label = entry.index .. ".  " .. name ..
-      (date ~= "" and "  " .. date or "") ..
-      "  (" .. blueprint_tool.format_count(count) .. " nodes)" ..
+    local line1 = entry.index .. ".  " .. name
+    local line2 = (date ~= "" and date .. "  " or "") ..
+      blueprint_tool.format_count(count) .. " nodes" ..
       (restricted and "  " .. minetest.colorize(blueprint_tool.COLOR_WARN, "[no copy]") or "")
 
-    fs = fs .. "label[0.3," .. (y + 0.22) .. ";" .. minetest.formspec_escape(label) .. "]"
+    fs = fs .. "label[0.3," .. (y + 0.1) .. ";" .. minetest.formspec_escape(line1) .. "]"
+    fs = fs .. "label[0.3," .. (y + 0.55) .. ";" ..
+      minetest.colorize("#EEEEEE", minetest.formspec_escape(line2)) .. "]"
 
     if not restricted then
-      fs = fs .. "button[" .. (W - 2.8) .. "," .. y .. ";2.5,0.6;ref_" .. entry.index .. ";Create Ref]"
+      fs = fs .. "button[" .. (W - 2.8) .. "," .. (y + 0.1) .. ";2.5,0.7;ref_" .. entry.index .. ";Create Ref]"
     end
+
+    fs = fs .. "box[0.3," .. (y + row_h - 0.1) .. ";" .. (W - 0.6) .. ",0.01;#999999]"
 
     y = y + row_h
   end
@@ -229,15 +250,19 @@ local function build_create_ref_formspec(callerName)
 
   -- Disallow copy checkbox + error label (always at bottom)
   local dc_val = state.disallow_copy and "true" or "false"
-  fs = fs .. "checkbox[5.3,0.4;disallow_copy;Disallow further copying on created refs;" .. dc_val .. "]"
+  fs = fs .. "checkbox[6.0,0.4;disallow_copy;Create: Disallow copying;" .. dc_val .. "]"
   fs = fs .. "tooltip[disallow_copy;" ..
-    minetest.formspec_escape("When checked, references you create won't be copy-able\nby people who import them in their blueprint library") ..
+    minetest.formspec_escape("When checked, players who import this reference\nwon't be able to create copies of it") ..
     "]"
 
   if state.error then
     fs = fs .. "label[0.3," .. (ay + 0.55) .. ";" ..
       minetest.formspec_escape(minetest.colorize(blueprint_tool.COLOR_WARN, state.error)) .. "]"
   end
+
+  local hint_y = ay + error_h + 0.55
+  fs = fs .. "label[0.3," .. hint_y .. ";" ..
+    minetest.formspec_escape(minetest.colorize("#888888", "Use /blueprint_manage to delete blueprints")) .. "]"
 
   return fs
 end
@@ -264,7 +289,7 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 
   if fields.disallow_copy ~= nil then
     state.disallow_copy = fields.disallow_copy == "true"
-    -- checkbox fires on change, no need to rebuild
+    set_disallow_copy_pref(callerName, state.disallow_copy)
     return
   end
 
@@ -340,6 +365,14 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
       if state.disallow_copy then
         ref_meta:set_string("disallow_copy", "true")
       end
+
+      local desc = minetest.colorize("#87CEEB", "Blueprint Reference")
+      local display_name = (slot_data.name and slot_data.name ~= "") and slot_data.name or "(unnamed)"
+      desc = desc .. "\nBlueprint: " .. display_name
+      if state.disallow_copy then
+        desc = desc .. "\n" .. minetest.colorize(blueprint_tool.COLOR_WARN, "No copy")
+      end
+      ref_meta:set_string("description", desc)
 
       local inv = player:get_inventory()
 

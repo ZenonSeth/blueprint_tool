@@ -37,7 +37,7 @@ local function build_formspec(callerName)
 
   -- Layout constants
   local slots_y  = 1.0
-  local row_h    = 0.72
+  local row_h    = 1.1
   local nav_y    = slots_y + SLOTS_PER_PAGE * row_h + 0.1
 
   -- Admin section height (always allocated when admin so height is stable)
@@ -72,12 +72,15 @@ local function build_formspec(callerName)
     local name  = entry.slot.name ~= "" and entry.slot.name or "(unnamed)"
     local date  = bp and bp.captured_at and os.date("%Y-%m-%d", bp.captured_at) or ""
     local count = bp and #bp.nodes or 0
-    local label = entry.index..".  "..name..
-      (date ~= "" and "  "..date or "")..
-      "  ("..blueprint_tool.format_count(count).." nodes)"
+    local line1 = entry.index..".  "..name
+    local line2 = (date ~= "" and date.."  " or "")..
+      blueprint_tool.format_count(count).." nodes"
     fs = fs..
-      "label[0.3,"..(y + 0.22)..";"..minetest.formspec_escape(label).."]"..
-      "button["..(W - 2.1)..","..y..";1.8,0.6;del_"..entry.index..";Delete]"
+      "label[0.3,"..(y + 0.1)..";"..minetest.formspec_escape(line1).."]"..
+      "label[0.3,"..(y + 0.55)..";"..
+        minetest.colorize("#EEEEEE", minetest.formspec_escape(line2)).."]"..
+      "button["..(W - 2.1)..",".. (y + 0.1) ..";1.8,0.7;del_"..entry.index..";Delete]"..
+      "box[0.3,"..(y + row_h - 0.1)..";"..(W - 0.6)..",".. "0.01;#999999]"
     y = y + row_h
   end
 

@@ -12,7 +12,7 @@ end
 -- Returns slot_index on success, or nil + error string on failure.
 -- disallow_copy propagates to the new slot for the machine to enforce later.
 -- Access and slot-limit checks are the caller's responsibility.
-function blueprint_tool.logic.import_blueprint_ref(bp_id, captured_at, oc, disallow_copy, targetPlayerName)
+function blueprint_tool.logic.import_blueprint_ref(bp_id, captured_at, oc, disallow_copy, targetPlayerName, name)
   if not blueprint_tool.logic.check_blueprint_ref_valid(bp_id, captured_at) then
     return nil, "Invalid or expired blueprint reference"
   end
@@ -34,7 +34,7 @@ function blueprint_tool.logic.import_blueprint_ref(bp_id, captured_at, oc, disal
 
   local id = blueprint_tool.storage.store_blueprint(new_bp)
   blueprint_tool.storage.set_player_slot(targetPlayerName, slot, {
-    name          = "",
+    name          = (name and name ~= "") and (name .. " : Imported") or "",
     bp_id         = id,
     disallow_copy = disallow_copy,
   })
