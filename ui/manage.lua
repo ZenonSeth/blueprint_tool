@@ -79,7 +79,12 @@ local function build_formspec(callerName)
       "label[0.3,"..(y + 0.1)..";"..minetest.formspec_escape(line1).."]"..
       "label[0.3,"..(y + 0.55)..";"..
         minetest.colorize("#EEEEEE", minetest.formspec_escape(line2)).."]"..
-      "button["..(W - 2.1)..",".. (y + 0.1) ..";1.8,0.7;del_"..entry.index..";Delete]"..
+      "button["..(W - 4.5)..",".. (y + 0.1) ..";0.7,0.7;up_"..entry.index..";^]"..
+      "tooltip[up_"..entry.index..";Move up]"..
+      "button["..(W - 3.8)..",".. (y + 0.1) ..";0.7,0.7;down_"..entry.index..";v]"..
+      "tooltip[down_"..entry.index..";Move down]"..
+
+      "button["..(W - 2.8)..",".. (y + 0.1) ..";2.5,0.7;del_"..entry.index..";Delete]"..
       "box[0.3,"..(y + row_h - 0.1)..";"..(W - 0.6)..",".. "0.01;#999999]"
     y = y + row_h
   end
@@ -208,6 +213,32 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
         blueprint_tool.show_manage(callerName, all_players[i])
         return
       end
+    end
+  end
+
+  -- Move up/down buttons
+  for k in pairs(fields) do
+    local up_idx   = tonumber(k:match("^up_(%d+)$"))
+    local down_idx = tonumber(k:match("^down_(%d+)$"))
+    local idx = up_idx or down_idx
+    local dir = up_idx and "up" or (down_idx and "down" or nil)
+    if dir and idx then
+      local target = state.target
+      if target ~= callerName and not is_admin(callerName) then
+        blueprint_tool.show_popup(callerName, "Permission denied")
+        return
+      end
+      local other_idx = dir == "up" and (idx - 1) or (idx + 1)
+      local limit = blueprint_tool.get_player_slot_limit(target)
+      if other_idx < 1 or other_idx > limit then return end
+      local slot_a = blueprint_tool.storage.get_player_slot(target, idx)
+      local slot_b = blueprint_tool.storage.get_player_slot(target, other_idx)
+      blueprint_tool.storage.clear_player_slot(target, idx)
+      blueprint_tool.storage.clear_player_slot(target, other_idx)
+      if slot_a then blueprint_tool.storage.set_player_slot(target, other_idx, slot_a) end
+      if slot_b then blueprint_tool.storage.set_player_slot(target, idx, slot_b) end
+      minetest.show_formspec(callerName, "blueprint_tool:manage", build_formspec(callerName))
+      return
     end
   end
 
