@@ -524,6 +524,7 @@ minetest.register_tool("blueprint_tool:placer_tool", {
   inventory_image = "placer_tool.png",
   wield_image = "placer_tool.png",
   stack_max = 1,
+  groups = { not_in_creative_inventory = 1 },
 
   on_use = function(itemstack, user, pointed_thing)
     if not user or not user:is_player() then return end
