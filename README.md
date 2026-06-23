@@ -34,8 +34,8 @@ The mod works with any game. Crafting recipes are provided for games that use `d
 | `blueprint_tool_max_size_z` | 32 | Maximum blueprint depth (Z axis) |
 | `blueprint_tool_nodes_per_tick` | 8 | Nodes placed per server tick during placement |
 | `blueprint_tool_default_slots` | 10 | Blueprint slots for players with `basic_blueprints` (or when open access is on) |
-| `blueprint_tool_more_slots` | 100 | Slots for players with `more_blueprints` |
-| `blueprint_tool_even_more_slots` | 500 | Slots for players with `even_more_blueprints` |
+| `blueprint_tool_more_slots` | 50 | Slots for players with `more_blueprints` |
+| `blueprint_tool_even_more_slots` | 200 | Slots for players with `even_more_blueprints` |
 
 ### Privileges
 

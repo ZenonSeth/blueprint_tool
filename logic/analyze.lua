@@ -83,9 +83,9 @@ end
 local function is_diggable(def)
   if not def then return false end
   local g = def.groups or {}
-  return (g.cracky or 0) > 0 or (g.crumbly or 0) > 0
-      or (g.choppy or 0) > 0 or (g.snappy  or 0) > 0
-      or (g.oddly_breakable_by_hand or 0) > 0
+  return (tonumber(g.cracky) or 0) > 0 or (tonumber(g.crumbly) or 0) > 0
+      or (tonumber(g.choppy) or 0) > 0 or (tonumber(g.snappy)  or 0) > 0
+      or (tonumber(g.oddly_breakable_by_hand) or 0) > 0
 end
 
 -- Exposed for use by paste logic to check the same condition at place-time.

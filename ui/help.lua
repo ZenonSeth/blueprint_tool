@@ -37,7 +37,7 @@ Right-click (or use) it to see who originally captured the blueprint, when, its 
 If the original blueprint it points to no longer exists (or was overwritten), the reference shows as invalid and can't be imported. If it was created with "Disallow further copying", you can still import and use it yourself, but you won't be able to create a new reference from your imported copy.]] },
   { title = "Managing Blueprints", text = H1 .. "Managing Blueprints" .. H1_END .. [[Run /blueprint_manage to open the blueprint manager - currently the only way to access it.
 
-It lists your saved blueprint slots with their name, capture date, and node count, and lets you Delete any of them to free up the slot. If you have the blueprint_admin (or server) privilege, the formspec also shows a paginated list of every player who has saved blueprints, plus a name field to jump straight to one; selecting a player lets you view and delete their slots the same way you would your own.]] },
+It lists your saved blueprint slots with their name, capture date, and node count, and lets you reorder them with the up/down buttons or Delete any of them to free up the slot. If you have the blueprint_admin (or server) privilege, the formspec also shows a paginated list of every player who has saved blueprints, plus a name field to jump straight to one; selecting a player lets you view and delete their slots the same way you would your own.]] },
   { title = "Info", build = function(playerName)
     local a = function(s) return "<style color=" .. blueprint_tool.COLOR_ACCENT .. ">" .. s .. "</style>" end
     local w = function(s) return "<style color=" .. blueprint_tool.COLOR_WARN .. ">" .. s .. "</style>" end
