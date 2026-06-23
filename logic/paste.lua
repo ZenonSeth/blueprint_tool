@@ -272,7 +272,7 @@ minetest.register_globalstep(function(dtime)
       if task.index > #task.nodes then
         active_placements[playerName] = nil
         blueprint_tool.show_popup(playerName,
-          "Placement finished! " .. result.placed .. " node(s) placed.")
+          "Placement finished! " .. result.placed .. " nodes placed.")
       end
     end
     ::next_player::

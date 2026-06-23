@@ -11,7 +11,7 @@ A single tool switches between two modes with Sneak+Right-click: **Creation** (s
 
 Placing consumes items from your inventory (unless you have `creative` or `give` privileges). The **Analyze** panel shows exactly what's needed and what's missing before you commit.
 
-Blueprints can be shared as physical items: right-click a blank **Blueprint** to create a **Blueprint Reference** linked to one of your slots. Other players can import it into their own slots.
+Blueprints can be shared as physical items: use a blank **Blueprint** to create a **Blueprint Reference** linked to one of your slots. Other players can import it into their own slots. Note that blueprint references depend on the original blueprint existing, if you delete the original, the reference stops being valid.
 
 Each player gets a set of persistent blueprint slots (count depends on privileges). An in-game guide is available via the **Help** button or `/blueprint_help`.
 
